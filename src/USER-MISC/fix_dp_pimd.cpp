@@ -487,6 +487,42 @@ void FixDPPimd::init()
 
 void FixDPPimd::setup(int vflag)
 {
+  int nlocal = atom->nlocal;
+  tagint *tag = atom->tag;
+  double **x = atom->x;
+  imageint *image = atom->image;
+  if(mapflag){
+    for(int i=0; i<nlocal; i++)
+    {
+      domain->unmap(x[i], image[i]);
+    }
+  }
+  if(method==NMPIMD)
+  {
+    MPI_Barrier(universe->uworld);
+    nmpimd_fill(atom->x);
+    MPI_Barrier(universe->uworld);
+    comm_exec(atom->x);
+    MPI_Barrier(universe->uworld);
+    nmpimd_transform(buf_beads, atom->x, M_x2xp[universe->iworld]);
+  }
+  compute_spring_energy();
+  if(method==NMPIMD)
+  {
+    MPI_Barrier(universe->uworld);
+    nmpimd_fill(atom->x);
+    MPI_Barrier(universe->uworld);
+    comm_exec(atom->x);
+    MPI_Barrier(universe->uworld);
+    nmpimd_transform(buf_beads, atom->x, M_xp2x[universe->iworld]);
+  }
+  if(mapflag)
+  {
+    for(int i=0; i<nlocal; i++)
+    {
+      domain->unmap_inv(x[i], image[i]);
+    }
+  }
     if(method==NMPIMD)
     {
       nmpimd_fill(atom->v);

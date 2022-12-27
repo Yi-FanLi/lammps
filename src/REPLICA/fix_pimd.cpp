@@ -507,6 +507,8 @@ void FixPIMD::setup(int vflag)
 
 void FixPIMD::initial_integrate(int /*vflag*/)
 {
+    MPI_Barrier(universe->uworld);
+  t1 = MPI_Wtime();
   // printf("step = %d start initial_integrate\ncell = %.16e %.16e %.16e\nvol = %.16e\n", update->ntimestep, domain->xprd, domain->yprd, domain->zprd, domain->xprd * domain->yprd * domain->zprd);
   // printf("me = %d, step %d initial_integrate starts!\n", universe->me, update->ntimestep);
   // printf("me = %d, step %d if starts!\n", universe->me, update->ntimestep);
@@ -547,9 +549,17 @@ void FixPIMD::initial_integrate(int /*vflag*/)
       // if(removecomflag) remove_com_motion();
           if(method==NMPIMD)
     {
+    MPI_Barrier(universe->uworld);
+      t5 = MPI_Wtime();
       inter_replica_comm(x);
-    if(cmode == SINGLE_PROC) nmpimd_transform(bufsortedall, x, M_x2xp[universe->iworld]);
-    else if(cmode == MULTI_PROC) nmpimd_transform(bufbeads, x, M_x2xp[universe->iworld]);
+    MPI_Barrier(universe->uworld);
+      t2 = MPI_Wtime();
+      if(cmode == SINGLE_PROC) nmpimd_transform(bufsortedall, x, M_x2xp[universe->iworld]);
+      else if(cmode == MULTI_PROC) nmpimd_transform(bufbeads, x, M_x2xp[universe->iworld]);
+    MPI_Barrier(universe->uworld);
+      t3 = MPI_Wtime();
+      tcomm1 += (t2-t5);
+      ttrans1 += (t3-t2);
       // nmpimd_transform(bufbeads, x, M_x2xp[universe->iworld]);
     }
       qc_step();
@@ -595,9 +605,17 @@ void FixPIMD::initial_integrate(int /*vflag*/)
  
      if(method==NMPIMD)
     {
+      MPI_Barrier(universe->uworld);
+      t5 = MPI_Wtime();
       inter_replica_comm(x);
+      MPI_Barrier(universe->uworld);
+    t2 = MPI_Wtime();
     if(cmode == SINGLE_PROC) nmpimd_transform(bufsortedall, x, M_xp2x[universe->iworld]);
     else if(cmode == MULTI_PROC) nmpimd_transform(bufbeads, x, M_xp2x[universe->iworld]);
+      MPI_Barrier(universe->uworld);
+    t3 = MPI_Wtime();
+    tcomm2 += (t2-t5);
+    ttrans2 += (t3-t2);
       // nmpimd_transform(bufbeads, x, M_xp2x[universe->iworld]);
     }
 
@@ -610,12 +628,17 @@ void FixPIMD::initial_integrate(int /*vflag*/)
     }
   // printf("step = %d\ncell = %.16e %.16e %.16e\nvol = %.16e\n", update->ntimestep, domain->xprd, domain->yprd, domain->zprd, domain->xprd * domain->yprd * domain->zprd);
   // printf("me = %d, step %d initial_integrate ends!\n", universe->me, update->ntimestep);
+    MPI_Barrier(universe->uworld);
+  t6 = MPI_Wtime();
+  tinitial_integrate += (t6-t1);
 }
 
 /* ---------------------------------------------------------------------- */
 
 void FixPIMD::final_integrate()
 {
+    MPI_Barrier(universe->uworld);
+  t7 = MPI_Wtime();
     if(pstat_flag) 
     {
       compute_totke();
@@ -641,12 +664,17 @@ void FixPIMD::final_integrate()
     {
       error->universe_all(FLERR,"Unknown integrator parameter for fix pimd");
     }
+    MPI_Barrier(universe->uworld);
+  t8 = MPI_Wtime();
+  tfinal_integrate += (t8-t7);
 }
 
 /* ---------------------------------------------------------------------- */
 
 void FixPIMD::post_force(int /*flag*/)
 {
+  MPI_Barrier(universe->uworld);
+  t9 = MPI_Wtime();
   // printf("step = %d\ncell = %.16e %.16e %.16e\nvol = %.16e\n", update->ntimestep, domain->xprd, domain->yprd, domain->zprd, domain->xprd * domain->yprd * domain->zprd);
   if(atom->nmax > maxunwrap) reallocate_x_unwrap();
   if(atom->nmax > maxxc) reallocate_xc();
@@ -674,7 +702,7 @@ void FixPIMD::post_force(int /*flag*/)
     xc[i][1] = xcall[3*(tag[i]-1)+1];
     xc[i][2] = xcall[3*(tag[i]-1)+2];
   }
-      int idx = atom->map(1);
+      // int idx = atom->map(1);
       // printf("in post_force, x_unwrap: %.6f %.6f %.6f xcall: %.6f %.6f %.6f xc: %.6f %.6f %.6f\n", x_unwrap[idx][0], x_unwrap[idx][1], x_unwrap[idx][2], xcall[0], xcall[1], xcall[2], xc[idx][0], xc[idx][1], xc[idx][2]);
   // MPI_Barrier(universe->uworld);
   // update_x_unwrap();
@@ -688,27 +716,50 @@ void FixPIMD::post_force(int /*flag*/)
       // domain->unmap_inv(x[i], image[i]);
     // }
   // }
+  MPI_Barrier(universe->uworld);
+  t12 = MPI_Wtime();
+  tpf1 += (t12-t9);
   compute_vir();
+  MPI_Barrier(universe->uworld);
+  t13 = MPI_Wtime();
   compute_vir_();
+  MPI_Barrier(universe->uworld);
+  t14 = MPI_Wtime();
   //  compute_t_prim();
   //  compute_t_vir();
   compute_pote();
    if(method==NMPIMD)
   {
+    MPI_Barrier(universe->uworld);
+    t5 = MPI_Wtime();
     inter_replica_comm(f);
+    MPI_Barrier(universe->uworld);
+    t2 = MPI_Wtime();
     if(cmode == SINGLE_PROC) nmpimd_transform(bufsortedall, f, M_x2xp[universe->iworld]);
     else if(cmode == MULTI_PROC) nmpimd_transform(bufbeads, f, M_x2xp[universe->iworld]);
+    MPI_Barrier(universe->uworld);
+    t3 = MPI_Wtime();
+    tvir1 += (t13-t12);
+    tvir2 += (t14-t13);
+    tcomm3 += (t2-t5);
+    ttrans3 += (t3-t2);
     // nmpimd_transform(bufbeads, f, M_x2xp[universe->iworld]);
   }
    c_pe->addstep(update->ntimestep+1); 
    c_press->addstep(update->ntimestep+1); 
   // printf("me = %d, step %d post_force ends!\n", universe->me, update->ntimestep);
+    MPI_Barrier(universe->uworld);
+  t10 = MPI_Wtime();
+  tpf2 += (t10-t3);
+  tpost_force += (t10-t9);
 }
 
 /* ---------------------------------------------------------------------- */
 
 void FixPIMD::end_of_step()
 {
+    MPI_Barrier(universe->uworld);
+  t11 = MPI_Wtime();
   compute_totke();
   // inv_volume = 1.0 / (domain->xprd * domain->yprd * domain->zprd);
   // compute_p_prim();
@@ -719,6 +770,13 @@ void FixPIMD::end_of_step()
   if(update->ntimestep % 10000 == 0)
   {
   if(universe->me==0) printf("This is the end of step %ld.\n", update->ntimestep);
+  }
+    MPI_Barrier(universe->uworld);
+  t4 = MPI_Wtime();
+  ttot += (t4-t1);
+  tend_of_step += (t4-t11);
+  if(universe->iworld == 0){
+    printf("step = %ld iworld = %d\ntime (s) total: %.4f s  transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f \npercentage (%%): transform %.4f %.4f %.4f comm %.4f %.4f %.4f \n    initial integrate | final integrate | post force | end of step \ntime (s): %.4f | %.4f | %.4f | %.4f \npercentage (%%): %.4f %.4f %.4f %.4f\n .   compute_vir | compute_vir_ | pf1 | pf2 \ntime (s): %.4f %.4f %.4f %.4f \npercentage (%%) %.4f %.4f %.4f %.4f \n\n", update->ntimestep, universe->iworld, ttot, ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3, ttrans1/ttot*100, ttrans2/ttot*100, ttrans3/ttot*100, tcomm1/ttot*100, tcomm2/ttot*100, tcomm3/ttot*100, tinitial_integrate, tfinal_integrate, tpost_force, tend_of_step, tinitial_integrate/ttot*100, tfinal_integrate/ttot*100, tpost_force/ttot*100, tend_of_step/ttot*100, tvir1, tvir2, tpf1, tpf2, tvir1/ttot*100, tvir2/ttot*100, tpf1/ttot*100, tpf2/ttot*100);
   }
   // if(universe->me==0) printf("me = %d This is the end of step %ld.\n", universe->me, update->ntimestep);
   // printf("me = %d This is the end of step %ld.\n\n", universe->me, update->ntimestep);

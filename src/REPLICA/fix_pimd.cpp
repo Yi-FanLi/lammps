@@ -739,6 +739,7 @@ void FixPIMD::post_force(int /*flag*/)
     else if(cmode == MULTI_PROC) nmpimd_transform(bufbeads, f, M_x2xp[universe->iworld]);
     MPI_Barrier(universe->uworld);
     t3 = MPI_Wtime();
+    tpote += (t5-t14);
     tvir1 += (t13-t12);
     tvir2 += (t14-t13);
     tcomm3 += (t2-t5);
@@ -776,7 +777,7 @@ void FixPIMD::end_of_step()
   ttot += (t4-t1);
   tend_of_step += (t4-t11);
   if(universe->iworld == 0){
-    printf("step = %ld iworld = %d\ntime (s) total: %.4f s  transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f \npercentage (%%): transform %.4f %.4f %.4f comm %.4f %.4f %.4f \n    initial integrate | final integrate | post force | end of step \ntime (s): %.4f | %.4f | %.4f | %.4f \npercentage (%%): %.4f %.4f %.4f %.4f\n .   compute_vir | compute_vir_ | pf1 | pf2 \ntime (s): %.4f %.4f %.4f %.4f \npercentage (%%) %.4f %.4f %.4f %.4f \n\n", update->ntimestep, universe->iworld, ttot, ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3, ttrans1/ttot*100, ttrans2/ttot*100, ttrans3/ttot*100, tcomm1/ttot*100, tcomm2/ttot*100, tcomm3/ttot*100, tinitial_integrate, tfinal_integrate, tpost_force, tend_of_step, tinitial_integrate/ttot*100, tfinal_integrate/ttot*100, tpost_force/ttot*100, tend_of_step/ttot*100, tvir1, tvir2, tpf1, tpf2, tvir1/ttot*100, tvir2/ttot*100, tpf1/ttot*100, tpf2/ttot*100);
+    printf("step = %ld iworld = %d\ntime (s) total: %.4f s  transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f \npercentage (%%): transform %.4f %.4f %.4f comm %.4f %.4f %.4f \n    initial integrate | final integrate | post force | end of step \ntime (s): %.4f | %.4f | %.4f | %.4f \npercentage (%%): %.4f %.4f %.4f %.4f\n .   compute_vir | compute_vir_ | compute_pote | pf1 | pf2 \ntime (s): %.4f %.4f %.4f %.4f %.4f \npercentage (%%) %.4f %.4f %.4f %.4f %.4f \n\n", update->ntimestep, universe->iworld, ttot, ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3, ttrans1/ttot*100, ttrans2/ttot*100, ttrans3/ttot*100, tcomm1/ttot*100, tcomm2/ttot*100, tcomm3/ttot*100, tinitial_integrate, tfinal_integrate, tpost_force, tend_of_step, tinitial_integrate/ttot*100, tfinal_integrate/ttot*100, tpost_force/ttot*100, tend_of_step/ttot*100, tvir1, tvir2, tpote, tpf1, tpf2, tvir1/ttot*100, tvir2/ttot*100, tpote/ttot*100, tpf1/ttot*100, tpf2/ttot*100);
   }
   // if(universe->me==0) printf("me = %d This is the end of step %ld.\n", universe->me, update->ntimestep);
   // printf("me = %d This is the end of step %ld.\n\n", universe->me, update->ntimestep);

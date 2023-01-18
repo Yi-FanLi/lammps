@@ -117,7 +117,7 @@ class FixPIMD : public Fix {
   FILE *frand;
 
   double t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
-  double ttot = 0.0, ttrans1 = 0.0, tcomm1 = 0.0, ttrans2 = 0.0, tcomm2 = 0.0, ttrans3 = 0.0, tcomm3 = 0.0, tvir1 = 0.0, tvir2 = 0.0;
+  double ttot = 0.0, ttrans1 = 0.0, tcomm1 = 0.0, ttrans2 = 0.0, tcomm2 = 0.0, ttrans3 = 0.0, tcomm3 = 0.0, tvir1 = 0.0, tvir2 = 0.0, tpote = 0.0;
   double tinitial_integrate = 0.0, tfinal_integrate = 0.0, tpost_force = 0.0, tend_of_step = 0.0;
   double tpf1 = 0.0, tpf2 = 0.0;
 

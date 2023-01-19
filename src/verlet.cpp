@@ -32,6 +32,7 @@
 #include "pair.h"
 #include "timer.h"
 #include "update.h"
+#include "universe.h"
 
 #include <cstring>
 
@@ -244,6 +245,8 @@ void Verlet::run(int n)
   else sortflag = 0;
 
   for (int i = 0; i < n; i++) {
+    MPI_Barrier(universe->uworld);
+    t1 = MPI_Wtime();
     if (timer->check_timeout(i)) {
       update->nsteps = i;
       break;
@@ -255,7 +258,13 @@ void Verlet::run(int n)
     // initial time integration
 
     timer->stamp();
+    MPI_Barrier(universe->uworld);
+    t2 = MPI_Wtime();
+    tbefore_initial += (t2-t1);
     modify->initial_integrate(vflag);
+    MPI_Barrier(universe->uworld);
+    t3 = MPI_Wtime();
+    tinitial_integrate += (t3-t2);
     if (n_post_integrate) modify->post_integrate();
     timer->stamp(Timer::MODIFY);
 
@@ -303,6 +312,9 @@ void Verlet::run(int n)
     // since some bonded potentials tally pairwise energy/virial
     // and Pair:ev_tally() needs to be called before any tallying
 
+    MPI_Barrier(universe->uworld);
+    t4 = MPI_Wtime();
+    tneighbor += (t4-t3);
     force_clear();
 
     timer->stamp();
@@ -330,6 +342,10 @@ void Verlet::run(int n)
       timer->stamp(Timer::KSPACE);
     }
 
+    MPI_Barrier(universe->uworld);
+    t5 = MPI_Wtime();
+    tforce += (t5-t4);
+
     if (n_pre_reverse) {
       modify->pre_reverse(eflag,vflag);
       timer->stamp(Timer::MODIFY);
@@ -343,10 +359,21 @@ void Verlet::run(int n)
     }
 
     // force modifications, final time integration, diagnostics
-
+    MPI_Barrier(universe->uworld);
+    t6 = MPI_Wtime();
+    tafter_force += (t6-t5);
     if (n_post_force_any) modify->post_force(vflag);
+    MPI_Barrier(universe->uworld);
+    t7 = MPI_Wtime();
+    tpost_force += (t7-t6);
     modify->final_integrate();
+    MPI_Barrier(universe->uworld);
+    t8 = MPI_Wtime();
+    tfinal_integrate += (t8-t7);
     if (n_end_of_step) modify->end_of_step();
+    MPI_Barrier(universe->uworld);
+    t9 = MPI_Wtime();
+    tend_of_step += (t9-t8);
     timer->stamp(Timer::MODIFY);
 
     // all output
@@ -355,6 +382,13 @@ void Verlet::run(int n)
       timer->stamp();
       output->write(ntimestep);
       timer->stamp(Timer::OUTPUT);
+    }
+    MPI_Barrier(universe->uworld);
+    t10 = MPI_Wtime();
+    tfinal += (t10-t9);
+    ttot += (t10-t1);
+    if(universe->iworld == 0){
+      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | neighbor | force | after force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tneighbor, tforce, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tneighbor+tforce+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tneighbor/ttot*100, tforce/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tneighbor+tforce+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
     }
   }
 }

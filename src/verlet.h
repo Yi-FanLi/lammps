@@ -34,6 +34,11 @@ class Verlet : public Integrate {
   void force_clear() override;
   void cleanup() override;
 
+  double t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
+  double ttot = 0.0, ttrans1 = 0.0, tcomm1 = 0.0, ttrans2 = 0.0, tcomm2 = 0.0, ttrans3 = 0.0, tcomm3 = 0.0, tvir1 = 0.0, tvir2 = 0.0, tpote = 0.0;
+  double tbefore_initial = 0.0, tinitial_integrate = 0.0, tneighbor = 0.0, tforce = 0.0, tafter_force = 0.0, tpost_force = 0.0, tfinal_integrate = 0.0, tend_of_step = 0.0, tfinal = 0.0;
+  double tpf1 = 0.0, tpf2 = 0.0;
+
  protected:
   int triclinic;    // 0 if domain is orthog, 1 if triclinic
   int torqueflag, extraflag;

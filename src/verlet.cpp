@@ -437,6 +437,7 @@ void Verlet::cleanup()
 
 void Verlet::force_clear()
 {
+  t21 = MPI_Wtime();
   size_t nbytes;
 
   if (external_force_clear) return;
@@ -462,6 +463,7 @@ void Verlet::force_clear()
     if (nbytes) {
       MPI_Barrier(universe->uworld);
       t19 = MPI_Wtime();
+      tbefore_memset += (t19-t21);
       memset(&atom->f[0][0],0,3*nbytes);
       MPI_Barrier(universe->uworld);
       t20 = MPI_Wtime();
@@ -493,7 +495,9 @@ void Verlet::force_clear()
       }
     }
   }
+  t22 = MPI_Wtime();
+  tafter_memset += (t22-t20);
   if (universe->iworld == 0) {
-    printf("\nstep = %d iworld = %d memset time(s): %.4f\n\n", update->ntimestep, universe->iworld, tmemset);
+    printf("\nstep = %d iworld = %d \n      before_memset | memset | after_memset \n time(s): %.4f %.4f %.4f\n\n", update->ntimestep, universe->iworld, tbefore_memset, tmemset, tafter_memset);
   }
 }

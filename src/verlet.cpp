@@ -447,11 +447,17 @@ void Verlet::force_clear()
 
   int nlocal = atom->nlocal;
   if (universe->iworld == 0) {
-    printf("includegroup = %d, newton = %d\n\n", neighbor->includegroup, force->newton);
+    printf("includegroup = %d, newton = %d, torqueflag = %d, extraflag = %d\n\n", neighbor->includegroup, force->newton, torqueflag, extraflag);
   }
   if (neighbor->includegroup == 0) {
     nbytes = sizeof(double) * nlocal;
+    if (universe->iworld == 0) {
+      printf("nbyte = %d\n", nbytes);
+    }
     if (force->newton) nbytes += sizeof(double) * atom->nghost;
+    if (universe->iworld == 0) {
+      printf("nghost = %d, nbyte = %d\n", atom->nghost, nbytes);
+    }
 
     if (nbytes) {
       memset(&atom->f[0][0],0,3*nbytes);

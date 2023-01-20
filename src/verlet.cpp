@@ -329,6 +329,14 @@ void Verlet::run(int n)
 
 
     force_clear();
+    MPI_Barrier(universe->uworld);
+    t18 = MPI_Wtime();
+    if (nflag == 0) {
+      tforce_clear += (t18-t14);
+    }
+    else {
+      tforce_clear += (t18-t17);
+    }
 
     timer->stamp();
 
@@ -339,12 +347,7 @@ void Verlet::run(int n)
 
     MPI_Barrier(universe->uworld);
     t11 = MPI_Wtime();
-    if (nflag == 0) {
-      tbefore_pair += (t11-t14);
-    }
-    else {
-      tbefore_pair += (t11-t17);
-    }
+    tpre_force += (t11-t18);
     
     if (pair_compute_flag) {
       force->pair->compute(eflag,vflag);
@@ -413,7 +416,7 @@ void Verlet::run(int n)
     tfinal += (t10-t9);
     ttot += (t10-t1);
     if(universe->iworld == 0){
-      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | decide | forward_comm | domain | exchange_and_border | neighbor | before_pair | pair | after_pair | after_force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tdecide, tforward_comm, tdomain, texchange_and_border, tneighbor, tbefore_pair, tpair, tafter_pair, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tbefore_initial+tbefore_pair+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tdecide/ttot*100, tforward_comm/ttot*100, tdomain/ttot*100, texchange_and_border/ttot*100, tneighbor/ttot*100, tbefore_pair/ttot*100, tpair/ttot*100, tafter_pair/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tbefore_pair+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
+      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | decide | forward_comm | domain | exchange_and_border | neighbor | force_clear | pre_force | pair | after_pair | after_force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tdecide, tforward_comm, tdomain, texchange_and_border, tneighbor, tforce_clear, tpre_force, tpair, tafter_pair, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tbefore_initial+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tdecide/ttot*100, tforward_comm/ttot*100, tdomain/ttot*100, texchange_and_border/ttot*100, tneighbor/ttot*100, tforce_clear/ttot*100, tpre_force/ttot*100, tpair/ttot*100, tafter_pair/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
     }
   }
 }

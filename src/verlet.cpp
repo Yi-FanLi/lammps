@@ -272,10 +272,16 @@ void Verlet::run(int n)
 
     nflag = neighbor->decide();
 
+    MPI_Barrier(universe->uworld);
+    t13 = MPI_Wtime();
+    tdecide += (t13-t3);
     if (nflag == 0) {
       timer->stamp();
       comm->forward_comm();
       timer->stamp(Timer::COMM);
+      // MPI_Barrier(universe->uworld);
+      t14 = MPI_Wtime();
+      tforward_comm += (t14-t13);
     } else {
       if (n_pre_exchange) {
         timer->stamp();
@@ -289,12 +295,18 @@ void Verlet::run(int n)
         comm->setup();
         if (neighbor->style) neighbor->setup_bins();
       }
+      // MPI_Barrier(universe->uworld);
+      t15 = MPI_Wtime();
+      tdomain += (t15-t13);
       timer->stamp();
       comm->exchange();
       if (sortflag && ntimestep >= atom->nextsort) atom->sort();
       comm->borders();
       if (triclinic) domain->lamda2x(atom->nlocal+atom->nghost);
       timer->stamp(Timer::COMM);
+      // MPI_Barrier(universe->uworld);
+      t16 = MPI_Wtime();
+      texchange_and_border += (t16-t15);
       if (n_pre_neighbor) {
         modify->pre_neighbor();
         timer->stamp(Timer::MODIFY);
@@ -305,6 +317,9 @@ void Verlet::run(int n)
         modify->post_neighbor();
         timer->stamp(Timer::MODIFY);
       }
+      // MPI_Barrier(universe->uworld);
+      t17 = MPI_Wtime();
+      tneighbor += (t17-t16);
     }
 
     // force computations
@@ -312,9 +327,7 @@ void Verlet::run(int n)
     // since some bonded potentials tally pairwise energy/virial
     // and Pair:ev_tally() needs to be called before any tallying
 
-    MPI_Barrier(universe->uworld);
-    t4 = MPI_Wtime();
-    tneighbor += (t4-t3);
+
     force_clear();
 
     timer->stamp();
@@ -324,10 +337,22 @@ void Verlet::run(int n)
       timer->stamp(Timer::MODIFY);
     }
 
+    MPI_Barrier(universe->uworld);
+    t11 = MPI_Wtime();
+    if (nflag == 0) {
+      tbefore_pair += (t11-t14);
+    }
+    else {
+      tbefore_pair += (t11-t17);
+    }
+    
     if (pair_compute_flag) {
       force->pair->compute(eflag,vflag);
       timer->stamp(Timer::PAIR);
     }
+    MPI_Barrier(universe->uworld);
+    t12 = MPI_Wtime();
+    tpair += (t12-t11);
 
     if (atom->molecular != Atom::ATOMIC) {
       if (force->bond) force->bond->compute(eflag,vflag);
@@ -344,7 +369,7 @@ void Verlet::run(int n)
 
     MPI_Barrier(universe->uworld);
     t5 = MPI_Wtime();
-    tforce += (t5-t4);
+    tafter_pair += (t5-t12);
 
     if (n_pre_reverse) {
       modify->pre_reverse(eflag,vflag);
@@ -388,7 +413,7 @@ void Verlet::run(int n)
     tfinal += (t10-t9);
     ttot += (t10-t1);
     if(universe->iworld == 0){
-      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | neighbor | force | after force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tneighbor, tforce, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tneighbor+tforce+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tneighbor/ttot*100, tforce/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tneighbor+tforce+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
+      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | decide | forward_comm | domain | exchange_and_border | neighbor | before_pair | pair | after_pair | after_force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tdecide, tforward_comm, tdomain, texchange_and_border, tneighbor, tbefore_pair, tpair, tafter_pair, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tbefore_initial+tbefore_pair+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tdecide/ttot*100, tforward_comm/ttot*100, tdomain/ttot*100, texchange_and_border/ttot*100, tneighbor/ttot*100, tbefore_pair/ttot*100, tpair/ttot*100, tafter_pair/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tdecide+tforward_comm+tdomain+texchange_and_border+tneighbor+tbefore_pair+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
     }
   }
 }

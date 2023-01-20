@@ -456,11 +456,16 @@ void Verlet::force_clear()
     }
     if (force->newton) nbytes += sizeof(double) * atom->nghost;
     if (universe->iworld == 0) {
-      printf("nghost = %d, nbyte = %d\n", atom->nghost, nbytes);
+      printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
     }
 
     if (nbytes) {
+      MPI_Barrier(universe->uworld);
+      t19 = MPI_Wtime();
       memset(&atom->f[0][0],0,3*nbytes);
+      MPI_Barrier(universe->uworld);
+      t20 = MPI_Wtime();
+      tmemset += (t20-t19);
       if (torqueflag) memset(&atom->torque[0][0],0,3*nbytes);
       if (extraflag) atom->avec->force_clear(0,nbytes);
     }
@@ -487,5 +492,8 @@ void Verlet::force_clear()
         if (extraflag) atom->avec->force_clear(nlocal,nbytes);
       }
     }
+  }
+  if (universe->iworld == 0) {
+    printf("\nstep = %d iworld = %d memset time(s): %.4f\n\n", update->ntimestep, universe->iworld, tmemset);
   }
 }

@@ -446,7 +446,9 @@ void Verlet::force_clear()
   // when using threads always clear all forces.
 
   int nlocal = atom->nlocal;
-
+  if (universe->iworld == 0) {
+    printf("includegroup = %d, newton = %d\n\n", neighbor->includegroup, force->newton);
+  }
   if (neighbor->includegroup == 0) {
     nbytes = sizeof(double) * nlocal;
     if (force->newton) nbytes += sizeof(double) * atom->nghost;

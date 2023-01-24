@@ -466,11 +466,11 @@ void Verlet::force_clear()
     if (universe->iworld == 0) {
       printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
     }
+    t19 = MPI_Wtime();
+    tbefore_memset += (t19-t25);
 
     if (nbytes) {
       // MPI_Barrier(universe->uworld);
-      t19 = MPI_Wtime();
-      tbefore_memset += (t19-t25);
       memset(&atom->f[0][0],0,3*nbytes);
       MPI_Barrier(universe->uworld);
       t20 = MPI_Wtime();

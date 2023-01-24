@@ -472,7 +472,7 @@ void Verlet::force_clear()
     if (nbytes) {
       // MPI_Barrier(universe->uworld);
       memset(&atom->f[0][0],0,3*nbytes);
-      MPI_Barrier(universe->uworld);
+      // MPI_Barrier(universe->uworld);
       t20 = MPI_Wtime();
       tmemset += (t20-t19);
       if (torqueflag) memset(&atom->torque[0][0],0,3*nbytes);

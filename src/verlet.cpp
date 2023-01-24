@@ -463,9 +463,9 @@ void Verlet::force_clear()
     if (force->newton) nbytes += sizeof(double) * atom->nghost;
     t25 = MPI_Wtime();
     tnghost += (t25-t24);
-    if (universe->iworld == 0) {
-      printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
-    }
+    // if (universe->iworld == 0) {
+      // printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
+    // }
     t19 = MPI_Wtime();
     tbefore_memset += (t19-t25);
 

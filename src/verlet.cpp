@@ -468,7 +468,7 @@ void Verlet::force_clear()
     }
 
     if (nbytes) {
-      MPI_Barrier(universe->uworld);
+      // MPI_Barrier(universe->uworld);
       t19 = MPI_Wtime();
       tbefore_memset += (t19-t25);
       memset(&atom->f[0][0],0,3*nbytes);

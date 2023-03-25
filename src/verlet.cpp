@@ -274,6 +274,7 @@ void Verlet::run(int n)
 
     MPI_Barrier(universe->uworld);
     t13 = MPI_Wtime();
+    printf("iworld = %d, start of before_clear at %.6f\n", universe->iworld, t13);
     tdecide += (t13-t3);
     if (nflag == 0) {
       timer->stamp();

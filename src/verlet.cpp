@@ -315,6 +315,8 @@ void Verlet::run(int n)
     // since some bonded potentials tally pairwise energy/virial
     // and Pair:ev_tally() needs to be called before any tallying
 
+    t14 = MPI_Wtime();
+    tbefore_clear_proc += (t14-t13);
     MPI_Barrier(universe->uworld);
     t17 = MPI_Wtime();
     tbefore_clear += (t17-t13);
@@ -401,6 +403,7 @@ void Verlet::run(int n)
     t10 = MPI_Wtime();
     tfinal += (t10-t9);
     ttot += (t10-t1);
+    printf("step = %ld iworld = %d\ntime (s) tbefore_clear_proc: %.4f s \n", update->ntimestep, universe->iworld, tbefore_clear_proc);
     if(universe->iworld == 0){
       printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | decide | before_clear | force_clear | pre_force | pair | after_pair | after_force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tdecide, tbefore_clear, tforce_clear, tpre_force, tpair, tafter_pair, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tdecide+tbefore_clear+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tdecide/ttot*100, tbefore_clear/ttot*100, tforce_clear/ttot*100, tpre_force/ttot*100, tpair/ttot*100, tafter_pair/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tdecide+tbefore_clear+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
     }

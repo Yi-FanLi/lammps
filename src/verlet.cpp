@@ -274,7 +274,7 @@ void Verlet::run(int n)
 
     MPI_Barrier(universe->uworld);
     t13 = MPI_Wtime();
-    printf("step = %d iworld = %d, start of before_clear at %.8f\n", update->ntimestep, universe->iworld, t13);
+    printf("step = %d iworld = %d, start of before_clear at %.8e\n", update->ntimestep, universe->iworld, t13);
     tdecide += (t13-t3);
     if (nflag == 0) {
       timer->stamp();
@@ -321,7 +321,7 @@ void Verlet::run(int n)
     MPI_Barrier(universe->uworld);
     t17 = MPI_Wtime();
     tbefore_clear += (t17-t13);
-    printf("step = %d iworld = %d, before_clear proc time %.8f time %.8f\n", update->ntimestep, universe->iworld, t14-t13, t17-t13);
+    printf("step = %d iworld = %d, t17 = %.8e t13 = %.8e t14 = %.8e before_clear proc time %.8e time %.8e\n", update->ntimestep, universe->iworld, t17, t13, t14, t14-t13, t17-t13);
 
     force_clear();
     MPI_Barrier(universe->uworld);

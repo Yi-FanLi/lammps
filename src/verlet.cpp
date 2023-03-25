@@ -279,9 +279,6 @@ void Verlet::run(int n)
       timer->stamp();
       comm->forward_comm();
       timer->stamp(Timer::COMM);
-      // MPI_Barrier(universe->uworld);
-      t14 = MPI_Wtime();
-      tforward_comm += (t14-t13);
     } else {
       if (n_pre_exchange) {
         timer->stamp();
@@ -295,18 +292,12 @@ void Verlet::run(int n)
         comm->setup();
         if (neighbor->style) neighbor->setup_bins();
       }
-      // MPI_Barrier(universe->uworld);
-      t15 = MPI_Wtime();
-      tdomain += (t15-t13);
       timer->stamp();
       comm->exchange();
       if (sortflag && ntimestep >= atom->nextsort) atom->sort();
       comm->borders();
       if (triclinic) domain->lamda2x(atom->nlocal+atom->nghost);
       timer->stamp(Timer::COMM);
-      // MPI_Barrier(universe->uworld);
-      t16 = MPI_Wtime();
-      texchange_and_border += (t16-t15);
       if (n_pre_neighbor) {
         modify->pre_neighbor();
         timer->stamp(Timer::MODIFY);
@@ -317,9 +308,6 @@ void Verlet::run(int n)
         modify->post_neighbor();
         timer->stamp(Timer::MODIFY);
       }
-      // MPI_Barrier(universe->uworld);
-      t17 = MPI_Wtime();
-      tneighbor += (t17-t16);
     }
 
     // force computations
@@ -327,16 +315,14 @@ void Verlet::run(int n)
     // since some bonded potentials tally pairwise energy/virial
     // and Pair:ev_tally() needs to be called before any tallying
 
+    MPI_Barrier(universe->uworld);
+    t17 = MPI_Wtime();
+    tbefore_clear += (t17-t13);
 
     force_clear();
     MPI_Barrier(universe->uworld);
     t18 = MPI_Wtime();
-    if (nflag == 0) {
-      tforce_clear += (t18-t14);
-    }
-    else {
-      tforce_clear += (t18-t17);
-    }
+    tforce_clear += (t18-t17);
 
     timer->stamp();
 

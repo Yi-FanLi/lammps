@@ -300,11 +300,65 @@ The vector values calculated by fix *pimd/nvt* are "extensive", except for the
 temperature, which is "intensive".
 
 Fix *pimd/langevin* computes a global vector of quantities, which
-can be accessed by various :doc:`output commands <Howto_output>`. If *ensemble*
-is *nve* or *nvt*, the vector has 10 values.
+can be accessed by various :doc:`output commands <Howto_output>`. Note that
+it outputs multiple log files, and different log files contain information
+about different beads or modes (see detailed explanations below). If *ensemble*
+is *nve* or *nvt*, the vector has 10 values:
 
-No parameter of fix *pimd/nvt* can be used with the *start/stop* keywords
-of the :doc:`run <run>` command.  Fix *pimd/nvt* is not invoked during
+   #. kinetic energy of the normal mode
+   #. spring elastic energy of the normal mode
+   #. potential energy of the bead
+   #. total energy of all beads (conserved if *ensemble* is *nve*)
+   #. primitive kinetic energy estimator
+   #. virial energy estimator
+   #. centroid-virial energy estimator
+   #. primitive pressure estimator
+   #. thermodynamic pressure estimator
+   #. centroid-virial pressure estimator
+
+The first 3 are different for different log files, and the others are the same for different log files.
+
+If *ensemble* is *nph* or *npt*, the vector stores internal variables of the barostat. If *iso* is used,
+the vector has 15 values:
+
+   #. kinetic energy of the normal mode
+   #. spring elastic energy of the normal mode
+   #. potential energy of the bead
+   #. total energy of all beads (conserved if *ensemble* is *nve*)
+   #. primitive kinetic energy estimator
+   #. virial energy estimator
+   #. centroid-virial energy estimator
+   #. primitive pressure estimator
+   #. thermodynamic pressure estimator
+   #. centroid-virial pressure estimator
+   #. barostat velocity
+   #. barostat kinetic energy
+   #. barostat potential energy
+   #. barostat cell Jacobian
+   #. enthalpy of the extended system (sum of 4, 12, 13, and 14; conserved if *ensemble* is *nph*)
+
+If *aniso* or *x* or *y* or *z* is used for the barostat, the vector has 17 values:
+
+   #. kinetic energy of the normal mode
+   #. spring elastic energy of the normal mode
+   #. potential energy of the bead
+   #. total energy of all beads (conserved if *ensemble* is *nve*)
+   #. primitive kinetic energy estimator
+   #. virial energy estimator
+   #. centroid-virial energy estimator
+   #. primitive pressure estimator
+   #. thermodynamic pressure estimator
+   #. centroid-virial pressure estimator
+   #. x component of barostat velocity
+   #. y component of barostat velocity
+   #. z component of barostat velocity
+   #. barostat kinetic energy
+   #. barostat potential energy
+   #. barostat cell Jacobian
+   #. enthalpy of the extended system (sum of 4, 14, 15, and 16; conserved if *ensemble* is *nph*)
+
+No parameter of fix *pimd/nvt* or *pimd/langevin* can be used with the *start/stop* keywords
+of the :doc:`run <run>` command.  Fix *pimd/nvt* or *pimd/langevin* is not invoked during
 :doc:`energy minimization <minimize>`.
 
 Restrictions

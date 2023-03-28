@@ -226,6 +226,9 @@ The keyword *taup* specifies the barostat damping time parameter for fix style *
 The keyword *fixcom* specifies whether the center-of-mass of the extended ring-polymer system is fixed during the pimd simulation.
 Once *fixcom* is set to be *yes*, the center-of-mass velocity will be distracted from the centroid-mode velocities in each step.
 
+The keyword *lj* should be used if :doc:`lj units <units>` is used for *fix pimd/langevin*. Typically one may want to use
+reduced units to run the simulation, and then convert the results into some physical units (for example, :doc:`metal units <units>`). In this case, the 5 quantities in the physical mass units are needed: epsilon (energy scale), sigma (length scale), mass, Planck's constant, mvv2e (mass * velocity^2 to energy conversion factor). Planck's constant and mvv2e can be found in src/update.cpp. If there is no need to convert it to physical units, set all these five value to 1.
+
 The PIMD algorithm in LAMMPS is implemented as a hyper-parallel scheme
 as described in :ref:`Calhoun <Calhoun>`.  In LAMMPS this is done by using
 :doc:`multi-replica feature <Howto_replica>` in LAMMPS, where each
@@ -369,6 +372,7 @@ LAMMPS was built with that package.  See the :doc:`Build package
 <Build_package>` page for more info.
 
 Fix *pimd/nvt* cannot be used with :doc:`lj units <units>`.
+Fix *pimd/langevin* can be used with :doc:`lj units <units>`. See the above part for how to use it.
 
 A PIMD simulation can be initialized with a single data file read via
 the :doc:`read_data <read_data>` command.  However, this means all

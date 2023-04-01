@@ -66,6 +66,8 @@ void PPPMDPLR::init() {
 ------------------------------------------------------------------------- */
 
 void PPPMDPLR::compute(int eflag, int vflag) {
+  MPI_Barrier(world);
+  t1 = MPI_Wtime();
   int i, j;
 
   // set energy/virial flags
@@ -106,8 +108,17 @@ void PPPMDPLR::compute(int eflag, int vflag) {
   // find grid points for all my particles
   // map my particle charge onto my local 3d density grid
 
+  MPI_Barrier(world);
+  t2 = MPI_Wtime();
+  tbefore_particle_map += (t2-t1);
   particle_map();
+  MPI_Barrier(world);
+  t3 = MPI_Wtime();
+  tparticle_map += (t3-t2);
   make_rho();
+  MPI_Barrier(world);
+  t4 = MPI_Wtime();
+  tmake_rho += (t4-t3);
 
   // all procs communicate density values from their ghost cells
   //   to fully sum contribution in their 3d bricks
@@ -123,7 +134,13 @@ void PPPMDPLR::compute(int eflag, int vflag) {
   gc->reverse_comm_kspace(this, 1, sizeof(FFT_SCALAR), REVERSE_RHO, gc_buf1,
                           gc_buf2, MPI_FFT_SCALAR);
 #endif
+  MPI_Barrier(world);
+  t5 = MPI_Wtime();
+  treverse_comm += (t5-t4);
   brick2fft();
+  MPI_Barrier(world);
+  t6 = MPI_Wtime();
+  tbrick2fft += (t6-t5);
 
   // compute potential gradient on my FFT grid and
   //   portion of e_long on this proc's FFT grid
@@ -131,6 +148,9 @@ void PPPMDPLR::compute(int eflag, int vflag) {
   // also performs per-atom calculations via poisson_peratom()
 
   poisson();
+  MPI_Barrier(world);
+  t7 = MPI_Wtime();
+  tpoisson += (t7-t6);
 
   // all procs communicate E-field values
   // to fill ghost cells surrounding their 3d bricks
@@ -187,7 +207,13 @@ void PPPMDPLR::compute(int eflag, int vflag) {
 
   // calculate the force on my particles
 
+  MPI_Barrier(world);
+  t8 = MPI_Wtime();
+  tafter_poisson += (t8-t7);
   fieldforce();
+  MPI_Barrier(world);
+  t9 = MPI_Wtime();
+  tfield_force += (t9-t8);
 
   // extra per-atom energy/virial communication
 
@@ -250,6 +276,11 @@ void PPPMDPLR::compute(int eflag, int vflag) {
   // convert atoms back from lamda to box coords
 
   if (triclinic) domain->lamda2x(atom->nlocal);
+  MPI_Barrier(world);
+  t10 = MPI_Wtime();
+  tafter_field_force += (t10-t9);
+  ttot += (t10-t1);
+      printf("step = %ld \ntime (s) total: %.4f s \n    before_particle_map | particle_map | make_rho | reverse_comm | brick2fft | poisson | after_poisson | field_force | after_field_force | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_particle_map, tparticle_map, tmake_rho, treverse_comm, tbrick2fft, tpoisson, tafter_poisson, tfield_force, tafter_field_force, tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force+, tbefore_particle_map/ttot*100, tparticle_map/ttot*100, tmake_rho/ttot*100, treverse_comm/ttot*100, tbrick2fft/ttot*100, tpoisson/ttot*100, tafter_poisson/ttot*100, tfield_force/ttot*100, tafter_field_force/ttot*100, (tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force)/ttot*100);
 }
 
 /* ----------------------------------------------------------------------

@@ -380,6 +380,7 @@ void PPPM::init()
 
 void PPPM::setup()
 {
+  printf("EXECUTING pppm->setup()!!!\n");
   MPI_Barrier(world);
   t1 = MPI_Wtime();
   if (triclinic) {
@@ -484,7 +485,7 @@ void PPPM::setup()
   t4 = MPI_Wtime();
   tcompute_gf_ik += (t4-t3);
   ttot += (t4-t1);
-      printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
+  printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
 }
 
 /* ----------------------------------------------------------------------

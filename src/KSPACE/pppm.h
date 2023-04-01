@@ -100,9 +100,6 @@ class PPPM : public KSpace {
   double qdist;        // distance from O site to negative charge
   double alpha;        // geometric factor
 
-  double tbefore_vg = 0.0, tvg = 0.0, tcompute_gf_ik = 0.0, ttot = 0.0;
-  double t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0, t6 = 0.0, t7 = 0.0, t8 = 0.0, t9 = 0.0, t10 = 0.0, t11 = 0.0, t12 = 0.0;
-
   virtual void set_grid_global();
   virtual void set_grid_local();
   void adjust_gewald();
@@ -190,6 +187,10 @@ class PPPM : public KSpace {
     double s = sx * sy * sz;
     return s * s;
   };
+private:
+  double tbefore_vg = 0.0, tvg = 0.0, tcompute_gf_ik = 0.0, ttot = 0.0;
+  double t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0, t6 = 0.0, t7 = 0.0, t8 = 0.0, t9 = 0.0, t10 = 0.0, t11 = 0.0, t12 = 0.0;
+
 };
 
 }    // namespace LAMMPS_NS

@@ -32,6 +32,7 @@
 #include "pair.h"
 #include "timer.h"
 #include "update.h"
+#include "universe.h"
 
 #include <cstring>
 
@@ -244,6 +245,8 @@ void Verlet::run(int n)
   else sortflag = 0;
 
   for (int i = 0; i < n; i++) {
+    MPI_Barrier(universe->uworld);
+    t1 = MPI_Wtime();
     if (timer->check_timeout(i)) {
       update->nsteps = i;
       break;
@@ -255,7 +258,13 @@ void Verlet::run(int n)
     // initial time integration
 
     timer->stamp();
+    MPI_Barrier(universe->uworld);
+    t2 = MPI_Wtime();
+    tbefore_initial += (t2-t1);
     modify->initial_integrate(vflag);
+    MPI_Barrier(universe->uworld);
+    t3 = MPI_Wtime();
+    tinitial_integrate += (t3-t2);
     if (n_post_integrate) modify->post_integrate();
     timer->stamp(Timer::MODIFY);
 
@@ -263,6 +272,10 @@ void Verlet::run(int n)
 
     nflag = neighbor->decide();
 
+    MPI_Barrier(universe->uworld);
+    t13 = MPI_Wtime();
+    printf("step = %d iworld = %d, start of before_clear at %.8e nflag = %d\n", update->ntimestep, universe->iworld, t13, nflag);
+    tdecide += (t13-t3);
     if (nflag == 0) {
       timer->stamp();
       comm->forward_comm();
@@ -303,7 +316,17 @@ void Verlet::run(int n)
     // since some bonded potentials tally pairwise energy/virial
     // and Pair:ev_tally() needs to be called before any tallying
 
+    t14 = MPI_Wtime();
+    tbefore_clear_proc += (t14-t13);
+    MPI_Barrier(universe->uworld);
+    t17 = MPI_Wtime();
+    tbefore_clear += (t17-t13);
+    printf("step = %d iworld = %d, t17 = %.8e t13 = %.8e t14 = %.8e before_clear proc time %.8e time %.8e\n", update->ntimestep, universe->iworld, t17, t13, t14, t14-t13, t17-t13);
+
     force_clear();
+    MPI_Barrier(universe->uworld);
+    t18 = MPI_Wtime();
+    tforce_clear += (t18-t17);
 
     timer->stamp();
 
@@ -312,10 +335,17 @@ void Verlet::run(int n)
       timer->stamp(Timer::MODIFY);
     }
 
+    MPI_Barrier(universe->uworld);
+    t11 = MPI_Wtime();
+    tpre_force += (t11-t18);
+    
     if (pair_compute_flag) {
       force->pair->compute(eflag,vflag);
       timer->stamp(Timer::PAIR);
     }
+    MPI_Barrier(universe->uworld);
+    t12 = MPI_Wtime();
+    tpair += (t12-t11);
 
     if (atom->molecular != Atom::ATOMIC) {
       if (force->bond) force->bond->compute(eflag,vflag);
@@ -330,6 +360,10 @@ void Verlet::run(int n)
       timer->stamp(Timer::KSPACE);
     }
 
+    MPI_Barrier(universe->uworld);
+    t5 = MPI_Wtime();
+    tafter_pair += (t5-t12);
+
     if (n_pre_reverse) {
       modify->pre_reverse(eflag,vflag);
       timer->stamp(Timer::MODIFY);
@@ -343,10 +377,21 @@ void Verlet::run(int n)
     }
 
     // force modifications, final time integration, diagnostics
-
+    MPI_Barrier(universe->uworld);
+    t6 = MPI_Wtime();
+    tafter_force += (t6-t5);
     if (n_post_force_any) modify->post_force(vflag);
+    MPI_Barrier(universe->uworld);
+    t7 = MPI_Wtime();
+    tpost_force += (t7-t6);
     modify->final_integrate();
+    MPI_Barrier(universe->uworld);
+    t8 = MPI_Wtime();
+    tfinal_integrate += (t8-t7);
     if (n_end_of_step) modify->end_of_step();
+    MPI_Barrier(universe->uworld);
+    t9 = MPI_Wtime();
+    tend_of_step += (t9-t8);
     timer->stamp(Timer::MODIFY);
 
     // all output
@@ -356,6 +401,14 @@ void Verlet::run(int n)
       output->write(ntimestep);
       timer->stamp(Timer::OUTPUT);
     }
+    MPI_Barrier(universe->uworld);
+    t10 = MPI_Wtime();
+    tfinal += (t10-t9);
+    ttot += (t10-t1);
+    printf("step = %ld iworld = %d\ntime (s) tbefore_clear_proc: %.4f s \n", update->ntimestep, universe->iworld, tbefore_clear_proc);
+    // if(universe->iworld == 0){
+      printf("step = %ld iworld = %d\ntime (s) total: %.4f s \n    before initial | initial_integrate | decide | before_clear | force_clear | pre_force | pair | after_pair | after_force | post_force | final_integrate | end_of_step | final | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, universe->iworld, ttot, tbefore_initial, tinitial_integrate, tdecide, tbefore_clear, tforce_clear, tpre_force, tpair, tafter_pair, tafter_force, tpost_force, tfinal_integrate, tend_of_step, tfinal, tbefore_initial+tinitial_integrate+tdecide+tbefore_clear+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal, tbefore_initial/ttot*100, tinitial_integrate/ttot*100, tdecide/ttot*100, tbefore_clear/ttot*100, tforce_clear/ttot*100, tpre_force/ttot*100, tpair/ttot*100, tafter_pair/ttot*100, tafter_force/ttot*100, tpost_force/ttot*100, tfinal_integrate/ttot*100, tend_of_step/ttot*100, tfinal/ttot*100, (tbefore_initial+tinitial_integrate+tdecide+tbefore_clear+tforce_clear+tpre_force+tpair+tafter_pair+tafter_force+tpost_force+tfinal_integrate+tend_of_step+tfinal)/ttot*100);
+    // }
   }
 }
 
@@ -375,22 +428,44 @@ void Verlet::cleanup()
 
 void Verlet::force_clear()
 {
+  t21 = MPI_Wtime();
   size_t nbytes;
 
   if (external_force_clear) return;
-
+  t22 = MPI_Wtime();
+  treturn += (t22-t21);
   // clear force on all particles
   // if either newton flag is set, also include ghosts
   // when using threads always clear all forces.
 
   int nlocal = atom->nlocal;
-
+  t23 = MPI_Wtime();
+  tnlocal += (t23-t22);
+  if (universe->iworld == 0) {
+    printf("includegroup = %d, newton = %d, torqueflag = %d, extraflag = %d\n\n", neighbor->includegroup, force->newton, torqueflag, extraflag);
+  }
   if (neighbor->includegroup == 0) {
     nbytes = sizeof(double) * nlocal;
+    t24 = MPI_Wtime();
+    tnbytes += (t24-t23);
+    if (universe->iworld == 0) {
+      printf("nbyte = %d\n", nbytes);
+    }
     if (force->newton) nbytes += sizeof(double) * atom->nghost;
+    t25 = MPI_Wtime();
+    tnghost += (t25-t24);
+    // if (universe->iworld == 0) {
+      // printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
+    // }
+    t19 = MPI_Wtime();
+    tbefore_memset += (t19-t25);
 
     if (nbytes) {
+      // MPI_Barrier(universe->uworld);
       memset(&atom->f[0][0],0,3*nbytes);
+      // MPI_Barrier(universe->uworld);
+      t20 = MPI_Wtime();
+      tmemset += (t20-t19);
       if (torqueflag) memset(&atom->torque[0][0],0,3*nbytes);
       if (extraflag) atom->avec->force_clear(0,nbytes);
     }
@@ -417,5 +492,10 @@ void Verlet::force_clear()
         if (extraflag) atom->avec->force_clear(nlocal,nbytes);
       }
     }
+  }
+  t22 = MPI_Wtime();
+  tafter_memset += (t22-t20);
+  if (universe->iworld == 0) {
+    printf("\nstep = %d iworld = %d \n    return | nlocal | nbytes | nghost | before_memset | memset | after_memset \n time(s): %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n\n", update->ntimestep, universe->iworld, treturn, tnlocal, tnbytes, tnghost, tbefore_memset, tmemset, tafter_memset);
   }
 }

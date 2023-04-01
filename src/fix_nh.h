@@ -143,6 +143,9 @@ class FixNH : public Fix {
   double compute_strain_energy();
   void compute_press_target();
   void nh_omega_dot();
+
+  double t1 = 0.0, t2 = 0.0;
+  double tinitial_integrate = 0.0;
 };
 
 }    // namespace LAMMPS_NS

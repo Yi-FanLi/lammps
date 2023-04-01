@@ -841,6 +841,8 @@ void FixNH::setup(int /*vflag*/)
 
 void FixNH::initial_integrate(int /*vflag*/)
 {
+  MPI_Barrier(world);
+  t1 = MPI_Wtime();
   // update eta_press_dot
 
   if (pstat_flag && mpchain) nhc_press_integrate();
@@ -889,6 +891,10 @@ void FixNH::initial_integrate(int /*vflag*/)
     remap();
     if (kspace_flag) force->kspace->setup();
   }
+  MPI_Barrier(world);
+  t2 = MPI_Wtime();
+  tinitial_integrate += (t2-t1);
+  printf("step = %ld fix nh \ntime (s) tinitial_integrate: %.6f s \n", update->ntimestep, tinitial_integrate);
 }
 
 /* ----------------------------------------------------------------------

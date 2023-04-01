@@ -428,44 +428,25 @@ void Verlet::cleanup()
 
 void Verlet::force_clear()
 {
-  t21 = MPI_Wtime();
   size_t nbytes;
 
   if (external_force_clear) return;
-  t22 = MPI_Wtime();
-  treturn += (t22-t21);
   // clear force on all particles
   // if either newton flag is set, also include ghosts
   // when using threads always clear all forces.
 
   int nlocal = atom->nlocal;
-  t23 = MPI_Wtime();
-  tnlocal += (t23-t22);
-  if (universe->iworld == 0) {
-    printf("includegroup = %d, newton = %d, torqueflag = %d, extraflag = %d\n\n", neighbor->includegroup, force->newton, torqueflag, extraflag);
-  }
   if (neighbor->includegroup == 0) {
     nbytes = sizeof(double) * nlocal;
-    t24 = MPI_Wtime();
-    tnbytes += (t24-t23);
-    if (universe->iworld == 0) {
-      printf("nbyte = %d\n", nbytes);
-    }
     if (force->newton) nbytes += sizeof(double) * atom->nghost;
-    t25 = MPI_Wtime();
-    tnghost += (t25-t24);
     // if (universe->iworld == 0) {
       // printf("nghost = %d, nbyte = %d\n\n", atom->nghost, nbytes);
     // }
-    t19 = MPI_Wtime();
-    tbefore_memset += (t19-t25);
 
     if (nbytes) {
       // MPI_Barrier(universe->uworld);
       memset(&atom->f[0][0],0,3*nbytes);
       // MPI_Barrier(universe->uworld);
-      t20 = MPI_Wtime();
-      tmemset += (t20-t19);
       if (torqueflag) memset(&atom->torque[0][0],0,3*nbytes);
       if (extraflag) atom->avec->force_clear(0,nbytes);
     }
@@ -492,10 +473,5 @@ void Verlet::force_clear()
         if (extraflag) atom->avec->force_clear(nlocal,nbytes);
       }
     }
-  }
-  t22 = MPI_Wtime();
-  tafter_memset += (t22-t20);
-  if (universe->iworld == 0) {
-    printf("\nstep = %d iworld = %d \n    return | nlocal | nbytes | nghost | before_memset | memset | after_memset \n time(s): %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n\n", update->ntimestep, universe->iworld, treturn, tnlocal, tnbytes, tnghost, tbefore_memset, tmemset, tafter_memset);
   }
 }

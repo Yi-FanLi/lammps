@@ -69,6 +69,7 @@ void PPPMDPLR::init() {
 void PPPMDPLR::compute(int eflag, int vflag) {
   MPI_Barrier(world);
   t1 = MPI_Wtime();
+  printf("differentiation_flag = %d\n", differentiation_flag);
   int i, j;
 
   // set energy/virial flags

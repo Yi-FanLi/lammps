@@ -37,6 +37,7 @@
 #include "neighbor.h"
 #include "pair.h"
 #include "remap_wrap.h"
+#include "update.h"
 
 #include <cmath>
 #include <cstring>
@@ -379,6 +380,8 @@ void PPPM::init()
 
 void PPPM::setup()
 {
+  MPI_Barrier(world);
+  t1 = MPI_Wtime();
   if (triclinic) {
     setup_triclinic();
     return;
@@ -441,6 +444,9 @@ void PPPM::setup()
 
   // virial coefficients
 
+  MPI_Barrier(world);
+  t2 = MPI_Wtime();
+  tbefore_vg += (t2-t1);
   double sqk,vterm;
 
   n = 0;
@@ -469,8 +475,16 @@ void PPPM::setup()
     }
   }
 
+  MPI_Barrier(world);
+  t3 = MPI_Wtime();
+  tvg += (t3-t2);
   if (differentiation_flag == 1) compute_gf_ad();
   else compute_gf_ik();
+  MPI_Barrier(world);
+  t4 = MPI_Wtime();
+  tcompute_gf_ik += (t4-t3);
+  ttot += (t4-t1);
+      printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
 }
 
 /* ----------------------------------------------------------------------

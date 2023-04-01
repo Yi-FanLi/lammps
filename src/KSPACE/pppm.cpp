@@ -479,12 +479,13 @@ void PPPM::setup()
   MPI_Barrier(world);
   t3 = MPI_Wtime();
   tvg += (t3-t2);
-  if (differentiation_flag == 1) compute_gf_ad();
-  else compute_gf_ik();
+  if (differentiation_flag == 1) { compute_gf_ad(); }
+  else { compute_gf_ik(); }
   MPI_Barrier(world);
   t4 = MPI_Wtime();
   tcompute_gf_ik += (t4-t3);
   ttot += (t4-t1);
+  printf("end of pppm->setup!!!!!\n");
   printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
 }
 
@@ -542,6 +543,9 @@ void PPPM::setup_triclinic()
     }
   }
 
+  MPI_Barrier(world);
+  t2 = MPI_Wtime();
+  tbefore_vg += (t2-t1);
   // virial coefficients
 
   double sqk,vterm;
@@ -565,8 +569,17 @@ void PPPM::setup_triclinic()
       vg[n][5] = vterm*fky[n]*fkz[n];
     }
   }
+  MPI_Barrier(world);
+  t3 = MPI_Wtime();
+  tvg += (t3-t2);
 
   compute_gf_ik_triclinic();
+  MPI_Barrier(world);
+  t4 = MPI_Wtime();
+  tcompute_gf_ik += (t4-t3);
+  ttot += (t4-t1);
+  printf("end of pppm->setup!!!!!\n");
+  printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik_triclinic | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
 }
 
 /* ----------------------------------------------------------------------

@@ -60,6 +60,8 @@ class FixDPLR : public Fix {
   std::vector<double> efield_fsum, efield_fsum_all;
   int efield_force_flag;
   void get_valid_pairs(std::vector<std::pair<int, int> > &pairs);
+  double tnlist = 0.0, tdtm_compute = 0.0;
+  double t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0, t6 = 0.0, t7 = 0.0, t8 = 0.0, t9 = 0.0, t10 = 0.0, t11 = 0.0, t12 = 0.0;
 };
 }  // namespace LAMMPS_NS
 

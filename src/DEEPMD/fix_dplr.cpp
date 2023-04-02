@@ -14,6 +14,7 @@
 #include "neighbor.h"
 #include "pppm_dplr.h"
 #include "update.h"
+#include "universe.h"
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
@@ -424,18 +425,28 @@ void FixDPLR::post_force(int vflag) {
       }
     }
   }
+  MPI_Barrier(world);
+  t1 = MPI_Wtime();
   // lmp nlist
   NeighList *list = pair_deepmd->list;
   deepmd::InputNlist lmp_list(list->inum, list->ilist, list->numneigh,
                               list->firstneigh);
+  MPI_Barrier(world);
+  t2 = MPI_Wtime();
+  tnlist += (t2-t1);
   // bonded pairs
   vector<pair<int, int> > valid_pairs;
   get_valid_pairs(valid_pairs);
   // output vects
   vector<FLOAT_PREC> dfcorr, dvcorr;
   // compute
+  MPI_Barrier(world);
+  t3 = MPI_Wtime();
   dtm.compute(dfcorr, dvcorr, dcoord, dtype, dbox, valid_pairs, dfele, nghost,
               lmp_list);
+  MPI_Barrier(world);
+  t4 = MPI_Wtime();
+  tdtm_compute += (t4-t3);
   assert(dfcorr.size() == dcoord.size());
   assert(dfcorr.size() == nall * 3);
   // backward communication of fcorr
@@ -498,6 +509,9 @@ void FixDPLR::post_force(int vflag) {
     vv[4] += dvcorr[6];
     vv[5] += dvcorr[7];
     v_tally(0, vv);
+  }
+  if(universe->me == 0){
+    printf("step = %ld fix_dplr->post_force: \ntime (s)  nlist | dtm_compute \ntime (s):       %.4f | %.4f \n\n", update->ntimestep, tnlist, tdtm_compute);
   }
 }
 

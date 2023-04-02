@@ -38,6 +38,7 @@
 #include "pair.h"
 #include "remap_wrap.h"
 #include "update.h"
+#include "universe.h"
 
 #include <cmath>
 #include <cstring>
@@ -380,7 +381,6 @@ void PPPM::init()
 
 void PPPM::setup()
 {
-  printf("EXECUTING pppm->setup()!!!\n");
   MPI_Barrier(world);
   t1 = MPI_Wtime();
   if (triclinic) {
@@ -485,8 +485,9 @@ void PPPM::setup()
   t4 = MPI_Wtime();
   tcompute_gf_ik += (t4-t3);
   ttot += (t4-t1);
-  printf("end of pppm->setup!!!!!\n");
+  if(universe->me == 0){
   printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -578,8 +579,9 @@ void PPPM::setup_triclinic()
   t4 = MPI_Wtime();
   tcompute_gf_ik += (t4-t3);
   ttot += (t4-t1);
-  printf("end of pppm->setup!!!!!\n");
+  if(universe->me == 0){
   printf("step = %ld pppm->setup: \ntime (s) total: %.4f s \n    before_vg | vg | compute_gf_ik_triclinic | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_vg, tvg, tcompute_gf_ik, tbefore_vg+tvg+tcompute_gf_ik, tbefore_vg/ttot*100, tvg/ttot*100, tcompute_gf_ik/ttot*100, (tbefore_vg+tvg+tcompute_gf_ik)/ttot*100);
+  }
 }
 
 /* ----------------------------------------------------------------------

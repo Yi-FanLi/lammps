@@ -15,6 +15,7 @@
 #include "math_const.h"
 #include "memory.h"
 #include "pppm.h"
+#include "universe.h"
 
 using namespace LAMMPS_NS;
 using namespace MathConst;
@@ -69,7 +70,6 @@ void PPPMDPLR::init() {
 void PPPMDPLR::compute(int eflag, int vflag) {
   MPI_Barrier(world);
   t1 = MPI_Wtime();
-  printf("differentiation_flag = %d\n", differentiation_flag);
   int i, j;
 
   // set energy/virial flags
@@ -282,7 +282,9 @@ void PPPMDPLR::compute(int eflag, int vflag) {
   t10 = MPI_Wtime();
   tafter_field_force += (t10-t9);
   ttot += (t10-t1);
-      printf("step = %ld \ntime (s) total: %.4f s \n    before_particle_map | particle_map | make_rho | reverse_comm | brick2fft | poisson | after_poisson | field_force | after_field_force | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_particle_map, tparticle_map, tmake_rho, treverse_comm, tbrick2fft, tpoisson, tafter_poisson, tfield_force, tafter_field_force, tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force, tbefore_particle_map/ttot*100, tparticle_map/ttot*100, tmake_rho/ttot*100, treverse_comm/ttot*100, tbrick2fft/ttot*100, tpoisson/ttot*100, tafter_poisson/ttot*100, tfield_force/ttot*100, tafter_field_force/ttot*100, (tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force)/ttot*100);
+  if(universe->me == 0){
+    printf("step = %ld \ntime (s) total: %.4f s \n    before_particle_map | particle_map | make_rho | reverse_comm | brick2fft | poisson | after_poisson | field_force | after_field_force | sum\ntime (s):       %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \npercentage (%%) %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f | %.4f \n\n", update->ntimestep, ttot, tbefore_particle_map, tparticle_map, tmake_rho, treverse_comm, tbrick2fft, tpoisson, tafter_poisson, tfield_force, tafter_field_force, tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force, tbefore_particle_map/ttot*100, tparticle_map/ttot*100, tmake_rho/ttot*100, treverse_comm/ttot*100, tbrick2fft/ttot*100, tpoisson/ttot*100, tafter_poisson/ttot*100, tfield_force/ttot*100, tafter_field_force/ttot*100, (tbefore_particle_map+tparticle_map+tmake_rho+treverse_comm+tbrick2fft+tpoisson+tafter_poisson+tfield_force+tafter_field_force)/ttot*100);
+  }
 }
 
 /* ----------------------------------------------------------------------

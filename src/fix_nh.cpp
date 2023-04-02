@@ -899,7 +899,6 @@ void FixNH::initial_integrate(int /*vflag*/)
   MPI_Barrier(world);
   t2 = MPI_Wtime();
   tinitial_integrate += (t2-t1);
-  printf("step = %ld fix nh \ntime (s) tinitial_integrate: %.6f s tkspace_setup: %.6f s\n", update->ntimestep, tinitial_integrate, tkspace_setup);
 }
 
 /* ----------------------------------------------------------------------

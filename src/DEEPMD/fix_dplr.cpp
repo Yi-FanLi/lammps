@@ -272,7 +272,12 @@ void FixDPLR::pre_force(int vflag) {
   // declear output
   vector<FLOAT_PREC> tensor;
   // compute
+  MPI_Barrier(world);
+  t5 = MPI_Wtime();
   dpt.compute(tensor, dcoord, dtype, dbox, nghost, lmp_list);
+  MPI_Barrier(world);
+  t6 = MPI_Wtime();
+  tdpt_compute += (t6-t5);
   // cout << "tensor of size " << tensor.size() << endl;
   // cout << "nghost " << nghost << endl;
   // cout << "nall " << dtype.size() << endl;
@@ -345,6 +350,9 @@ void FixDPLR::pre_force(int vflag) {
   //   }
   //   cout << endl;
   // }
+  if(universe->me == 0){
+    printf("step = %ld fix_dplr->pre_force: \ntime (s)  dpt_compute \ntime (s):       %.4f \n\n", update->ntimestep, tdpt_compute);
+  }
 }
 
 void FixDPLR::post_force(int vflag) {

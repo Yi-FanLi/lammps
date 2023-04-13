@@ -65,6 +65,7 @@ enum { SINGLE_PROC, MULTI_PROC };
 FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg), random(nullptr), c_pe(nullptr), c_press(nullptr)
 {
+  restart_global = 1;
   time_integrate = 1;
   tagsend = tagrecv = nullptr;
   bufsend = bufrecv = nullptr;
@@ -254,6 +255,8 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
     }
   }
   extvector = 1;
+  kBT = force->boltz * temp;
+  if (pstat_flag) baro_init();
 
   // some initilizations
 
@@ -338,6 +341,45 @@ FixPIMDLangevin::~FixPIMDLangevin()
   delete[] id_pe;
   delete[] id_press;
   delete random;
+  delete c_pe;
+  delete c_press;
+  delete[] mass;
+  delete[] _omega_k;
+  delete[] Lan_c;
+  delete[] Lan_s;
+  delete[] tau_k;
+  delete[] c1_k;
+  delete[] c2_k;
+  delete[] plansend;
+  delete[] planrecv;
+  delete[] modeindex;
+  memory->destroy(xcall);
+  if (cmode == SINGLE_PROC) {
+    memory->destroy(bufsorted);
+    memory->destroy(outsorted);
+    memory->destroy(bufsortedall);
+    memory->destroy(buftransall);
+    memory->destroy(counts);
+    memory->destroy(displacements);
+  }
+
+  if (cmode == MULTI_PROC) {
+    memory->destroy(bufsendall);
+    memory->destroy(bufrecvall);
+    memory->destroy(tagsendall);
+    memory->destroy(tagrecvall);
+    memory->destroy(counts);
+    memory->destroy(displacements);
+  }
+  memory->destroy(M_x2xp);
+  memory->destroy(M_xp2x);
+  memory->destroy(xc);
+  memory->destroy(x_unwrap);
+  memory->destroy(bufsend);
+  memory->destroy(bufrecv);
+  memory->destroy(tagsend);
+  memory->destroy(tagrecv);
+  memory->destroy(bufbeads);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -376,7 +418,6 @@ void FixPIMDLangevin::init()
   }
   planck *= sp;
   hbar = planck / (2.0 * MY_PI);
-  kBT = force->boltz * temp;
   double beta = 1.0 / (force->boltz * temp);
   double _fbond = 1.0 * np * np / (beta * beta * hbar * hbar);
 
@@ -408,7 +449,6 @@ void FixPIMDLangevin::init()
   nmpimd_init();
 
   Langevin_init();
-  if (pstat_flag) baro_init();
 
   c_pe = modify->get_compute_by_id(id_pe);
   c_press = modify->get_compute_by_id(id_press);
@@ -450,13 +490,6 @@ void FixPIMDLangevin::setup(int vflag)
     for (int i = 0; i < nlocal; i++) domain->unmap_inv(x[i], image[i]);
   }
 
-  if (method == NMPIMD) {
-    inter_replica_comm(v);
-    if (cmode == SINGLE_PROC)
-      nmpimd_transform(bufsortedall, v, M_x2xp[universe->iworld]);
-    else if (cmode == MULTI_PROC)
-      nmpimd_transform(bufbeads, v, M_x2xp[universe->iworld]);
-  }
   post_force(vflag);
   compute_totke();
   end_of_step();
@@ -1376,6 +1409,54 @@ void FixPIMDLangevin::compute_totenthalpy()
     }
   } else if (barostat == MTTK)
     totenthalpy = tote + 1.5 * W * vw[0] * vw[0] * inverse_np + p_hydro * (volume - vol0);
+}
+
+/* ----------------------------------------------------------------------
+   pack entire state of Fix into one write
+------------------------------------------------------------------------- */
+
+void FixPIMDLangevin::write_restart(FILE *fp)
+{
+  int nsize = size_restart_global();
+
+  double *list;
+  memory->create(list,nsize,"FixPIMDLangevin:list");
+
+  pack_restart_data(list);
+
+  if (comm->me == 0) {
+    int size = nsize * sizeof(double);
+    fwrite(&size,sizeof(int),1,fp);
+    fwrite(list,sizeof(double),nsize,fp);
+  }
+
+  memory->destroy(list);
+}
+/* ---------------------------------------------------------------------- */
+
+int FixPIMDLangevin::size_restart_global()
+{
+  int nsize = 6;
+
+  return nsize;
+}
+
+/* ---------------------------------------------------------------------- */
+
+int FixPIMDLangevin::pack_restart_data(double *list)
+{
+  int n = 0;
+  for (int i=0; i<6; i++) { list[n++] = vw[i]; }
+  return n;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixPIMDLangevin::restart(char *buf)
+{
+  int n = 0;
+  auto list = (double *) buf;
+  for (int i=0; i<6; i++) { vw[i] = list[n++]; }
 }
 
 /* ---------------------------------------------------------------------- */

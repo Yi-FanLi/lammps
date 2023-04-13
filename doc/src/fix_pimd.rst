@@ -106,7 +106,7 @@ thermostats in each chain.  For example, for a simulation of N particles
 with P beads in each ring-polymer, the total number of NH thermostats
 would be 3 x N x P x Nc.
 
-Fix *pimd/langevin* implements a Langevin thermostat in the normal mode 
+Fix *pimd/langevin* implements a Langevin thermostat in the normal mode
 representation, and also provides a barostat to sample the NPH/NPT ensembles.
 
 .. note::
@@ -269,12 +269,24 @@ related tasks for each of the partitions, e.g.
    read_restart system_${ibead}.restart2
 
 .. note::
-   Fix *pimd/langevin* dumps the Catersian coordinates, but dumps the velocities and
-   forces in the normal mode representation. If the Catersian velocities and forces are
+   Fix *pimd/langevin* dumps the Cartesian coordinates, but dumps the velocities and
+   forces in the normal mode representation. If the Cartesian velocities and forces are
    needed, it is easy to perform the transformation when doing post-processing.
 
-   It is recommended to dump the image flags (*ix iy iz*) for fix *pimd/langevin*. It 
+   It is recommended to dump the image flags (*ix iy iz*) for fix *pimd/langevin*. It
    will be useful if you want to calculate some estimators during post-processing.
+
+Major differences of *fix pimd/nvt* and *fix pimd/langevin* are:
+
+   #. *Fix pimd/nvt* includes Cartesian pimd, normal mode pimd, and centroid md. *Fix pimd/langevin* only intends to support normal mode pimd, as it is commonly enough for thermodynamic sampling.
+   #. *Fix pimd/nvt* uses Nose-Hoover chain thermostat. *Fix pimd/langevin* uses Langevin thermostat.
+   #. *Fix pimd/langevin* provides barostat, so the npt ensemble can be sampled. *Fix pimd/nvt* only support nvt ensemble.
+   #. *Fix pimd/langevin* provides several quantum estimators in output.
+   #. *Fix pimd/langevin* allows multiple processes for each bead. For *fix pimd/nvt*, there is a large chance that multi-process tasks for each bead may fail.
+   #. The dump of *fix pimd/nvt* are all Cartesian. *Fix pimd/langevin* dumps normal-mode velocities and forces, and Cartesian coordinates.
+
+Initially, the inter-replica communication and normal mode transformation parts of *fix pimd/langevin* are written based on
+those of *fix pimd/nvt*, but are significantly revised.
 
 Restart, fix_modify, output, run start/stop, minimize info
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -285,7 +297,11 @@ quasi-beads to :doc:`binary restart files <restart>`.  See the
 a fix in an input script that reads a restart file, so that the
 operation of the fix continues in an uninterrupted fashion.
 
-Fix *pimd/langevin* ...
+Fix *pimd/langevin* writes the state of the barostat overall beads to
+:doc:`binary restart files <restart>`. Since it uses a stochastic thermostat,
+the state of the thermostat is not written. However, the state of the system
+can be restored by reading the restart file, except that it will re-initialize
+the random number generator.
 
 None of the :doc:`fix_modify <fix_modify>` options
 are relevant to fix pimd/nvt.

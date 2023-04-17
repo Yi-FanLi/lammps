@@ -711,7 +711,7 @@ void FixPIMDLangevin::collect_xc()
   }
   MPI_Bcast(xcall, ntotal * 3, MPI_DOUBLE, 0, universe->uworld);
   if(universe->iworld == 0){
-    printf("step = %ld iworld = %d\ntime (s) transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f\n\n", ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3);
+    printf("step = %ld iworld = %d\ntime (s) transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f\n\n", update->ntimestep, universe->iworld, ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3);
   }
 }
 

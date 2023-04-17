@@ -872,7 +872,7 @@ void FixPIMDLangevin::press_v_step()
         MPI_Allreduce(&dvw_proc, &dvw, 1, MPI_DOUBLE, MPI_SUM, world);
         vw[0] += dvw;
       }
-      MPI_Barrier(universe->uworld);
+      // MPI_Barrier(universe->uworld);
       // MPI_Bcast(&vw[0], 1, MPI_DOUBLE, 0, universe->uworld);
     } else if (barostat == MTTK) {
       mtk_term1 = 2. / atom->natoms * totke / 3;

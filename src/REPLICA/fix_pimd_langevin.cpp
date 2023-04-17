@@ -534,7 +534,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       t4 = MPI_Wtime();
       MPI_Barrier(universe->uworld);
       tcomm1 += (t2-t1);
-      ttrans1 += (t4-t1);
+      ttrans1 += (t4-t3);
     }
     qc_step();
     a_step();

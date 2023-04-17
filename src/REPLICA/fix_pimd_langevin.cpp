@@ -578,7 +578,6 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
     t6 = MPI_Wtime();
     MPI_Barrier(universe->uworld);
     t7 = MPI_Wtime();
-    inter_replica_comm(x);
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, x, M_xp2x[universe->iworld]);
     else if (cmode == MULTI_PROC)
@@ -650,11 +649,10 @@ void FixPIMDLangevin::post_force(int /*flag*/)
   if (method == NMPIMD) {
     MPI_Barrier(universe->uworld);
     t9 = MPI_Wtime();
-    inter_replica_comm(x);
+    inter_replica_comm(f);
     t10 = MPI_Wtime();
     MPI_Barrier(universe->uworld);
     t11 = MPI_Wtime();
-    inter_replica_comm(f);
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, f, M_x2xp[universe->iworld]);
     else if (cmode == MULTI_PROC)

@@ -520,11 +520,21 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
     }
     b_step();
     if (method == NMPIMD) {
+      MPI_Barrier(universe->uworld);
+      t1 = MPI_Wtime();
       inter_replica_comm(x);
+      t2 = MPI_Wtime();
+      MPI_Barrier(universe->uworld);
+      t3 = MPI_Wtime();
       if (cmode == SINGLE_PROC)
         nmpimd_transform(bufsortedall, x, M_x2xp[universe->iworld]);
       else if (cmode == MULTI_PROC)
         nmpimd_transform(bufbeads, x, M_x2xp[universe->iworld]);
+      
+      t4 = MPI_Wtime();
+      MPI_Barrier(universe->uworld);
+      tcomm1 += (t2-t1);
+      ttrans1 += (t4-t1);
     }
     qc_step();
     a_step();
@@ -562,11 +572,22 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
   compute_p_prim();
 
   if (method == NMPIMD) {
+    MPI_Barrier(universe->uworld);
+    t5 = MPI_Wtime();
+    inter_replica_comm(x);
+    t6 = MPI_Wtime();
+    MPI_Barrier(universe->uworld);
+    t7 = MPI_Wtime();
     inter_replica_comm(x);
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, x, M_xp2x[universe->iworld]);
     else if (cmode == MULTI_PROC)
       nmpimd_transform(bufbeads, x, M_xp2x[universe->iworld]);
+
+    t8 = MPI_Wtime();
+    MPI_Barrier(universe->uworld);
+    tcomm2 += (t6-t5);
+    ttrans2 += (t8-t7);
   }
 
   if (mapflag) {
@@ -627,11 +648,22 @@ void FixPIMDLangevin::post_force(int /*flag*/)
   compute_t_vir();
   compute_pote();
   if (method == NMPIMD) {
+    MPI_Barrier(universe->uworld);
+    t9 = MPI_Wtime();
+    inter_replica_comm(x);
+    t10 = MPI_Wtime();
+    MPI_Barrier(universe->uworld);
+    t11 = MPI_Wtime();
     inter_replica_comm(f);
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, f, M_x2xp[universe->iworld]);
     else if (cmode == MULTI_PROC)
       nmpimd_transform(bufbeads, f, M_x2xp[universe->iworld]);
+
+    t12 = MPI_Wtime();
+    MPI_Barrier(universe->uworld);
+    tcomm3 += (t10-t9);
+    ttrans3 += (t12-t11);
   }
   c_pe->addstep(update->ntimestep + 1);
   c_press->addstep(update->ntimestep + 1);
@@ -678,6 +710,9 @@ void FixPIMDLangevin::collect_xc()
     }
   }
   MPI_Bcast(xcall, ntotal * 3, MPI_DOUBLE, 0, universe->uworld);
+  if(universe->iworld == 0){
+    printf("step = %ld iworld = %d\ntime (s) transform: %.4f %.4f %.4f inter-replica comm: %.4f %.4f %.4f\n\n", ttrans1, ttrans2, ttrans3, tcomm1, tcomm2, tcomm3);
+  }
 }
 
 /* ---------------------------------------------------------------------- */

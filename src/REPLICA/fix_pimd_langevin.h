@@ -115,7 +115,7 @@ class FixPIMDLangevin : public Fix {
   class RanMars *random;
 
   double t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
-  double ttrans1 = 0.0, tcomm1 = 0.0, ttrans2 = 0.0, tcomm2 = 0.0, ttrans3 = 0.0;
+  double ttrans1 = 0.0, tcomm1 = 0.0, ttrans2 = 0.0, tcomm2 = 0.0, ttrans3 = 0.0, tcomm3 = 0.0;
 
   int tstat_flag;    // tstat_flat = 1 if thermostat if used
   void Langevin_init();

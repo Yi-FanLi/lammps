@@ -476,9 +476,9 @@ void FixPIMDLangevin::setup(int vflag)
       nmpimd_transform(bufbeads, x, M_x2xp[universe->iworld]);
   }
   collect_xc();
-  compute_spring_energy();
-  compute_t_prim();
-  compute_p_prim();
+  // compute_spring_energy();
+  // compute_t_prim();
+  // compute_p_prim();
   if (method == NMPIMD) {
     inter_replica_comm(x);
     if (cmode == SINGLE_PROC)
@@ -491,7 +491,7 @@ void FixPIMDLangevin::setup(int vflag)
   }
 
   post_force(vflag);
-  compute_totke();
+  // compute_totke();
   end_of_step();
   c_pe->addstep(update->ntimestep + 1);
   c_press->addstep(update->ntimestep + 1);
@@ -568,8 +568,8 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
   }
   collect_xc();
   compute_spring_energy();
-  compute_t_prim();
-  compute_p_prim();
+  // compute_t_prim();
+  // compute_p_prim();
 
   if (method == NMPIMD) {
     MPI_Barrier(universe->uworld);
@@ -873,7 +873,7 @@ void FixPIMDLangevin::press_v_step()
         vw[0] += dvw;
       }
       MPI_Barrier(universe->uworld);
-      MPI_Bcast(&vw[0], 1, MPI_DOUBLE, 0, universe->uworld);
+      // MPI_Bcast(&vw[0], 1, MPI_DOUBLE, 0, universe->uworld);
     } else if (barostat == MTTK) {
       mtk_term1 = 2. / atom->natoms * totke / 3;
       f_omega = (volume * np * (p_md - p_hydro) + mtk_term1) / W;
@@ -1345,7 +1345,7 @@ void FixPIMDLangevin::compute_totke()
   }
   kine *= force->mvv2e;
   MPI_Allreduce(&kine, &ke_bead, 1, MPI_DOUBLE, MPI_SUM, world);
-  MPI_Allreduce(&ke_bead, &totke, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
+  // MPI_Allreduce(&ke_bead, &totke, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
   totke /= universe->procs_per_world[universe->iworld];
 }
 
@@ -1366,7 +1366,7 @@ void FixPIMDLangevin::compute_spring_energy()
         (x[i][0] * x[i][0] + x[i][1] * x[i][1] + x[i][2] * x[i][2]);
   }
   MPI_Allreduce(&spring_energy, &se_bead, 1, MPI_DOUBLE, MPI_SUM, world);
-  MPI_Allreduce(&se_bead, &total_spring_energy, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
+  // MPI_Allreduce(&se_bead, &total_spring_energy, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
   total_spring_energy /= universe->procs_per_world[universe->iworld];
 }
 
@@ -1380,7 +1380,7 @@ void FixPIMDLangevin::compute_pote()
   c_pe->compute_scalar();
   pe_bead = c_pe->scalar;
   pot_energy_partition = pe_bead / universe->procs_per_world[universe->iworld];
-  MPI_Allreduce(&pot_energy_partition, &pote, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
+  // MPI_Allreduce(&pot_energy_partition, &pote, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1423,7 +1423,7 @@ void FixPIMDLangevin::compute_p_cv()
     p_cv = THIRD * inv_volume * ((2.0 * ke_bead - centroid_vir) * force->nktv2p + vir) / np;
   }
   p_md = THIRD * inv_volume * (totke + vir);
-  MPI_Bcast(&p_cv, 1, MPI_DOUBLE, 0, universe->uworld);
+  // MPI_Bcast(&p_cv, 1, MPI_DOUBLE, 0, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */

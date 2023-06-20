@@ -324,6 +324,9 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
     memory->create(buftransall, nreplica * ntotal, 3, "FixPIMDLangevin:buftransall");
     memory->create(counts, nreplica, "FixPIMDLangevin:counts");
     memory->create(displacements, nreplica, "FixPIMDLangevin:displacements");
+    for (int i = 0; i < nreplica; i++) counts[i] = ntotal*3;
+    displacements[0] = 0;
+    for (int i = 0; i < nreplica - 1; i++) displacements[i + 1] = displacements[i] + counts[i];
   }
 
   if ((cmode == MULTI_PROC) && (counts == nullptr)) {
@@ -433,7 +436,7 @@ void FixPIMDLangevin::init()
 
   if (integrator == OBABO) {
     dtf = 0.5 * update->dt * force->ftm2v;
-    dtv = 0.5 * update->dt;
+    dtv = update->dt;
     dtv2 = dtv * dtv;
     dtv3 = THIRD * dtv2 * dtv * force->ftm2v;
   } else if (integrator == BAOAB) {
@@ -530,8 +533,6 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
     }
     qc_step();
     a_step();
-    qc_step();
-    a_step();
   } else if (integrator == BAOAB) {
     if (pstat_flag) {
       compute_totke();
@@ -558,7 +559,9 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
   } else {
     error->universe_all(FLERR, "Unknown integrator parameter for fix pimd/langevin");
   }
+  if(pstat_flag) {
   collect_xc();
+  }
   compute_spring_energy();
   compute_t_prim();
   compute_p_prim();
@@ -610,6 +613,7 @@ void FixPIMDLangevin::post_force(int /*flag*/)
   double **f = atom->f;
   imageint *image = atom->image;
   tagint *tag = atom->tag;
+  if (pstat_flag) {
   for (int i = 0; i < nlocal; i++) {
     x_unwrap[i][0] = x[i][0];
     x_unwrap[i][1] = x[i][1];
@@ -627,6 +631,7 @@ void FixPIMDLangevin::post_force(int /*flag*/)
   compute_vir();
   compute_cvir();
   compute_t_vir();
+  }
   compute_pote();
   if (method == NMPIMD) {
     inter_replica_comm(f);
@@ -892,7 +897,9 @@ void FixPIMDLangevin::langevin_init()
 {
   double beta = 1.0 / kt;
   _omega_np = np / beta / hbar;
-  double _omega_np_dt_half = _omega_np * update->dt * 0.5;
+  double _omega_np_dt_; 
+  if (integrator == OBABO) _omega_np_dt_ = _omega_np * update->dt;
+  else if (integrator == BAOAB) _omega_np_dt_ = _omega_np * update->dt * 0.5;
 
   _omega_k = new double[np];
   Lan_c = new double[np];
@@ -900,14 +907,14 @@ void FixPIMDLangevin::langevin_init()
   if (fmmode == PHYSICAL) {
     for (int i = 0; i < np; i++) {
       _omega_k[i] = _omega_np * sqrt(lam[i]) / sqrt(fmass);
-      Lan_c[i] = cos(sqrt(lam[i]) * _omega_np_dt_half);
-      Lan_s[i] = sin(sqrt(lam[i]) * _omega_np_dt_half);
+      Lan_c[i] = cos(sqrt(lam[i]) * _omega_np_dt_);
+      Lan_s[i] = sin(sqrt(lam[i]) * _omega_np_dt_);
     }
   } else if (fmmode == NORMAL) {
     for (int i = 0; i < np; i++) {
       _omega_k[i] = _omega_np / sqrt(fmass);
-      Lan_c[i] = cos(_omega_np_dt_half);
-      Lan_s[i] = sin(_omega_np_dt_half);
+      Lan_c[i] = cos(_omega_np_dt_);
+      Lan_s[i] = sin(_omega_np_dt_);
     }
   }
   if (tau > 0)
@@ -1127,19 +1134,9 @@ void FixPIMDLangevin::reallocate()
 
 void FixPIMDLangevin::inter_replica_comm(double **ptr)
 {
-  MPI_Request requests[2];
-  MPI_Status statuses[2];
-  if (atom->nmax > maxlocal) reallocate();
   int nlocal = atom->nlocal;
   tagint *tag = atom->tag;
   int i, m;
-
-  // copy local values
-  for (i = 0; i < nlocal; i++) {
-    bufbeads[ireplica][3 * i + 0] = ptr[i][0];
-    bufbeads[ireplica][3 * i + 1] = ptr[i][1];
-    bufbeads[ireplica][3 * i + 2] = ptr[i][2];
-  }
 
   // communicate values from the other beads
   if (cmode == SINGLE_PROC) {
@@ -1151,13 +1148,21 @@ void FixPIMDLangevin::inter_replica_comm(double **ptr)
       bufsorted[tagtmp - 1][2] = ptr[i][2];
       m++;
     }
-    MPI_Allgather(&m, 1, MPI_INT, counts, 1, MPI_INT, universe->uworld);
-    for (i = 0; i < nreplica; i++) counts[i] *= 3;
-    displacements[0] = 0;
-    for (i = 0; i < nreplica - 1; i++) displacements[i + 1] = displacements[i] + counts[i];
     MPI_Allgatherv(bufsorted[0], 3 * m, MPI_DOUBLE, bufsortedall[0], counts, displacements,
                    MPI_DOUBLE, universe->uworld);
   } else if (cmode == MULTI_PROC) {
+    MPI_Request requests[2];
+    MPI_Status statuses[2];
+
+    if (atom->nmax > maxlocal) reallocate();
+
+    // copy local values
+    for (i = 0; i < nlocal; i++) {
+      bufbeads[ireplica][3 * i + 0] = ptr[i][0];
+      bufbeads[ireplica][3 * i + 1] = ptr[i][1];
+      bufbeads[ireplica][3 * i + 2] = ptr[i][2];
+    }
+
     m = 0;
     for (i = 0; i < nlocal; i++) {
       tagsend[m] = tag[i];

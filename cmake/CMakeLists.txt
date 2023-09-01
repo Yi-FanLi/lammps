@@ -45,7 +45,13 @@ mark_as_advanced(LAMMPS_DOWNLOADS_URL)
 
 find_package(Git)
 find_package(Torch REQUIRED)
-#find_package(Eigen3 REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+if(EIGEN3_FOUND)
+    include_directories(${EIGEN3_INCLUDE_DIR})
+else()
+    message(FATAL_ERROR "Eigen3 not found!")
+endif()
 
 # by default, install into $HOME/.local (not /usr/local), so that no root access (and sudo!!) is needed
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -207,8 +213,12 @@ if(BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND CMAKE_CROSSC
 endif()
 
 add_executable(lmp ${MAIN_SOURCES})
-include_directories(/root/Softwares/deepmd-pytorch/source/api_cc/include /opt/mamba/envs/dppt/include/eigen3/ /opt/mamba/lib/python3.10/site-packages/torch/include/torch/)
-target_link_directories(lmp PRIVATE /root/Softwares/deepmd-pytorch/source/api_cc ${TORCH_LIBRARY_DIRS})
+message(STATUS "TORCH_INCLUDE_DIRS = ${TORCH_INCLUDE_DIRS}")
+set(DEEPMD_INCLUDE_PATH "" CACHE PATH "Path to DeePMD include files")
+include_directories(${DEEPMD_INCLUDE_PATH} ${TORCH_INCLUDE_DIRS})
+target_link_directories(lmp PRIVATE ${TORCH_LIBRARY_DIRS})
+set(DEEPMD_LIB_PATH "" CACHE PATH "Path to DeePMD library libdeepmd_cc.so")
+target_link_directories(lmp PRIVATE ${DEEPMD_LIB_PATH})
 message(STATUS "TORCH_LIBRARIES = ${TORCH_LIBRARIES}")
 target_link_libraries(lmp PUBLIC lammps ${TORCH_LIBRARIES} deepmd_cc)
 #target_link_libraries(lmp PRIVATE deepmd_cc)
@@ -314,7 +324,7 @@ endforeach()
 ######################################################
 # packages with special compiler needs or external libs
 ######################################################
-target_include_directories(lammps PUBLIC $<BUILD_INTERFACE:${LAMMPS_SOURCE_DIR}> ${TORCH_INCLUDE_DIRS} /opt/mamba/envs/dppt/include/eigen3/)
+target_include_directories(lammps PUBLIC $<BUILD_INTERFACE:${LAMMPS_SOURCE_DIR}> ${TORCH_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 if(PKG_ADIOS)
   # The search for ADIOS2 must come before MPI because

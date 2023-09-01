@@ -19,7 +19,8 @@ if(POLICY CMP0135)
 endif()
 
 ########################################
-
+set(CMAKE_CXX_STANDARD 17)
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 project(lammps CXX)
 set(SOVERSION 0)
 get_property(BUILD_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -43,6 +44,8 @@ set(LAMMPS_THIRDPARTY_URL "${LAMMPS_DOWNLOADS_URL}/thirdparty")
 mark_as_advanced(LAMMPS_DOWNLOADS_URL)
 
 find_package(Git)
+find_package(Torch REQUIRED)
+#find_package(Eigen3 REQUIRED)
 
 # by default, install into $HOME/.local (not /usr/local), so that no root access (and sudo!!) is needed
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -204,13 +207,18 @@ if(BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND CMAKE_CROSSC
 endif()
 
 add_executable(lmp ${MAIN_SOURCES})
-target_link_libraries(lmp PRIVATE lammps)
+include_directories(/root/Softwares/deepmd-pytorch/source/api_cc/include /opt/mamba/envs/dppt/include/eigen3/ /opt/mamba/lib/python3.10/site-packages/torch/include/torch/)
+target_link_directories(lmp PRIVATE /root/Softwares/deepmd-pytorch/source/api_cc ${TORCH_LIBRARY_DIRS})
+message(STATUS "TORCH_LIBRARIES = ${TORCH_LIBRARIES}")
+target_link_libraries(lmp PUBLIC lammps ${TORCH_LIBRARIES} deepmd_cc)
+#target_link_libraries(lmp PRIVATE deepmd_cc)
 set_target_properties(lmp PROPERTIES OUTPUT_NAME ${LAMMPS_BINARY})
 install(TARGETS lmp EXPORT LAMMPS_Targets DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 option(CMAKE_VERBOSE_MAKEFILE "Generate verbose Makefiles" OFF)
 
 set(STANDARD_PACKAGES
+  DEEPMD
   ADIOS
   AMOEBA
   ASPHERE
@@ -306,7 +314,7 @@ endforeach()
 ######################################################
 # packages with special compiler needs or external libs
 ######################################################
-target_include_directories(lammps PUBLIC $<BUILD_INTERFACE:${LAMMPS_SOURCE_DIR}>)
+target_include_directories(lammps PUBLIC $<BUILD_INTERFACE:${LAMMPS_SOURCE_DIR}> ${TORCH_INCLUDE_DIRS} /opt/mamba/envs/dppt/include/eigen3/)
 
 if(PKG_ADIOS)
   # The search for ADIOS2 must come before MPI because

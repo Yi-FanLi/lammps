@@ -382,7 +382,7 @@ int FixDeform::setmask()
 {
   int mask = 0;
   if (force_reneighbor) mask |= PRE_EXCHANGE;
-  mask |= END_OF_STEP;
+  mask |= POST_INTEGRATE;
   return mask;
 }
 
@@ -649,7 +649,7 @@ void FixDeform::pre_exchange()
 
 /* ---------------------------------------------------------------------- */
 
-void FixDeform::end_of_step()
+void FixDeform::post_integrate()
 {
   int i;
 

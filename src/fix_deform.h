@@ -34,7 +34,7 @@ class FixDeform : public Fix {
   int setmask() override;
   void init() override;
   void pre_exchange() override;
-  void end_of_step() override;
+  void post_integrate() override;
   void write_restart(FILE *) override;
   void restart(char *buf) override;
   double memory_usage() override;

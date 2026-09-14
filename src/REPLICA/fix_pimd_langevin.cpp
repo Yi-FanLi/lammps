@@ -210,6 +210,11 @@ bool FixPIMDLangevin::parse_keyword(int narg, char **arg, int &i)
 {
   if (i + 2 > narg)
     utils::missing_cmd_args(FLERR, fmt::format("fix {} {}", style, arg[i]), error);
+  // The bosonic argument filter replaces its own keyword with an empty string.
+  if (arg[i][0] == '\0') {
+    i += 2;
+    return true;
+  }
   if (strcmp(arg[i], "method") == 0) {
     if (strcmp(arg[i + 1], "nmpimd") == 0)
       method = NMPIMD;

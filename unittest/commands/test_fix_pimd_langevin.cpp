@@ -455,6 +455,32 @@ TEST_F(FixPIMDLangevinSerialTest, RejectsUnsupportedAndIncompleteKeywords)
   }
 }
 
+TEST_F(FixPIMDLangevinSerialTest, BosonicEsynchParsesAndRuns)
+{
+  for (const char *options : {"esynch yes temp 1.0", "temp 1.0 esynch no"}) {
+    setup_single_atom_zero_pair([this](const std::string &line) { command(line); });
+    command(std::string("fix cp all pimd/langevin/bosonic method pimd ensemble nve ") + options);
+    command("run 2 post no");
+    EXPECT_EQ(fix_vector_size("cp"), 6);
+    for (int i = 0; i < 6; ++i) EXPECT_TRUE(std::isfinite(fix_value("cp", i)));
+    command("clear");
+  }
+}
+
+TEST_F(FixPIMDLangevinSerialTest, BosonicEsynchRejectsInvalidValue)
+{
+  setup_single_atom_zero_pair([this](const std::string &line) { command(line); });
+  EXPECT_EXIT({
+    try {
+      command("fix cp all pimd/langevin/bosonic method pimd ensemble nve esynch invalid");
+    } catch (const LAMMPSException &e) {
+      std::_Exit(std::string(e.what()).find("esynch parameter can only receive yes or no") !=
+                         std::string::npos ? 0 : 1);
+    }
+    std::_Exit(1);
+  }, ::testing::ExitedWithCode(0), "");
+}
+
 TEST_F(FixPIMDLangevinSerialTest, NMPIMDNVEBAOABP1)
 {
   setup_single_atom_zero_pair([this](const std::string &line) { command(line); });

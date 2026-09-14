@@ -352,6 +352,50 @@ TEST(FixPIMDNVEMPI, ConservesTotalEnergyOverShortRun)
   lammps_close(lmp);
 }
 
+TEST(FixPIMDNVEMPI, CommunicationMatchesTagsAcrossDifferentDecompositions)
+{
+  int nprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs != 6) GTEST_SKIP() << "This test requires exactly 6 MPI ranks";
+  const char *args[] = {"LAMMPS_test", "-log", "none", "-partition", "3x2",
+                        "-nocite", "-in", "none"};
+  auto *lmp = static_cast<LAMMPS *>(lammps_open(sizeof(args) / sizeof(char *), const_cast<char **>(args),
+                                               MPI_COMM_WORLD, nullptr));
+  auto command = [lmp](const char *line) { lammps_command(lmp, line); };
+  command("units lj");
+  command("atom_style atomic");
+  command("atom_modify map yes");
+  command("processors 2 1 1");
+  command("region box block 0 4 0 2 0 2");
+  command("create_box 1 box");
+  command("variable xpos universe 0.5 2.5 0.5");
+  command("create_atoms 1 single ${xpos} 0.5 0.5");
+  command("create_atoms 1 single 0.5 1.5 0.5");
+  command("create_atoms 1 single 2.5 1.5 0.5");
+  command("mass 1 1.0");
+  command("pair_style zero 0.4");
+  command("pair_coeff * *");
+  command("fix cp all pimd/nve temp 1.0");
+  command("run 0 post no");
+  auto *fix = dynamic_cast<FixPIMDNVE *>(lmp->modify->get_fix_by_id("cp"));
+  ASSERT_NE(fix, nullptr);
+  // Repeat initialization and buffer replacement to check ownership and capacity tracking.
+  for (int pass = 0; pass < 2; ++pass) {
+    fix->comm_init();
+    fix->reallocate();
+    for (int i = 0; i < lmp->atom->nlocal; ++i)
+      for (int d = 0; d < 3; ++d)
+        lmp->atom->v[i][d] = 100.0 * fix->ireplica + 10.0 * lmp->atom->tag[i] + d;
+    fix->inter_replica_comm(lmp->atom->v);
+    for (int bead = 0; bead < 3; ++bead)
+      for (int i = 0; i < lmp->atom->nlocal; ++i)
+        for (int d = 0; d < 3; ++d)
+          EXPECT_DOUBLE_EQ(fix->bufbeads[bead][3*i+d],
+                           100.0 * bead + 10.0 * lmp->atom->tag[i] + d);
+  }
+  lammps_close(lmp);
+}
+
 TEST(FixPIMDNVEMPI, MultiRankPerBeadRunProducesFiniteVector)
 {
   int nprocs = 0;

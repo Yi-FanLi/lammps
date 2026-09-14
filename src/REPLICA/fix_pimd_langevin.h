@@ -57,24 +57,7 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   // Inter-bead communication
 
-  void comm_init();
-  void comm_init_multirank();
   virtual void prepare_coordinates();
-  void inter_replica_comm(double **ptr) override;
-  void inter_replica_comm_multirank(double **ptr);
-  void ring_collect(const std::vector<tagint> &miss_tag,
-                                            double **ptr,
-                                            std::vector<tagint> &rep_tag,
-                                            std::vector<double> &rep_val);
-
-  /* normal-mode operations */
-
-  void reallocate();
-  void reallocate_multirank();
-
-  int maxsend;
-  // Flat communication buffers; the base class uses two-dimensional buffers.
-  double *bufsend, *bufrecv;
 
   /* Langevin integration */
 

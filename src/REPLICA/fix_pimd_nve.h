@@ -74,12 +74,11 @@ class FixPIMDNVE : public Fix {
   int x_last, x_next;
   int cmode;
   int sizeplan;
+  int maxsend;
   int *plansend, *planrecv;
   tagint *tagsend, *tagrecv;
-  double **bufsend, **bufrecv, **bufbeads;
+  double *bufsend, *bufrecv, **bufbeads;
   double **bufsorted, **bufsortedall;
-  tagint *tagsendall, *tagrecvall;
-  double **bufsendall, **bufrecvall;
   int *counts, *displacements;
 
   // M_x2xp: forward (beads -> normal modes); M_xp2x: backward (normal modes -> beads).
@@ -105,7 +104,9 @@ class FixPIMDNVE : public Fix {
   class Compute *c_press;
 
   void comm_init();
-  virtual void inter_replica_comm(double **);
+  void inter_replica_comm(double **);
+  void ring_collect(const std::vector<tagint> &, double **,
+                    std::vector<tagint> &, std::vector<double> &);
   void reallocate();
   void reallocate_x_unwrap();
   void reallocate_xc();

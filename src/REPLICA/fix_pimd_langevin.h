@@ -126,7 +126,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void compute_stress_tensor();
   void compute_cvir() override;
   void compute_totenthalpy();
-  int subclass_vector_size() const override;
   double compute_subclass_vector(int) const override;
   int base_restart_size() const override;
   int pack_base_restart(double *) const override;

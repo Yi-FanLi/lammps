@@ -1323,16 +1323,6 @@ void FixPIMDLangevin::compute_totenthalpy()
     totenthalpy = tote + 1.5 * W * vw[0] * vw[0] * inverse_np + p_hydro * (volume - vol0);
 }
 
-int FixPIMDLangevin::subclass_vector_size() const
-{
-  if (!pstat_flag) return 0;
-  if (pstyle == ISO) return 5;
-  if (pstyle == ANISO) return 7;
-  return 0;
-}
-
-/* ---------------------------------------------------------------------- */
-
 double FixPIMDLangevin::compute_subclass_vector(int n) const
 {
   if (!pstat_flag) return 0.0;

@@ -131,16 +131,10 @@ class FixPIMDNVE : public Fix {
   void remap_coordinates(double **, imageint *);
   virtual double **normal_mode_transform_buffer();
   void prepare_common_virial_state();
-  void prepare_normal_mode_forces();
   void schedule_common_computes();
 
-  double estimator_atom_count() const;
   double local_kinetic_energy_sum() const;
-  double local_normal_mode_spring_energy_sum() const;
-  double local_xf_virial_sum() const;
-  double local_centroid_virial_sum() const;
   void reduce_bead_and_total(double, double &, double &) const;
-  double reduce_partition_scalar(double) const;
 
   void compute_xf_vir();
   virtual void compute_cvir();
@@ -159,7 +153,6 @@ class FixPIMDNVE : public Fix {
   virtual int subclass_restart_size() const;
   virtual int pack_subclass_restart(double *, int) const;
   virtual int unpack_subclass_restart(const double *, int);
-  virtual int subclass_vector_size() const;
   virtual double compute_subclass_vector(int) const;
 
   virtual int nuclear_vector_size() const;
@@ -167,8 +160,6 @@ class FixPIMDNVE : public Fix {
   virtual int base_restart_size() const;
   virtual int pack_base_restart(double *) const;
   virtual int unpack_base_restart(const double *);
-  int size_restart_global();
-  int pack_restart_data(double *);
 };
 
 }    // namespace LAMMPS_NS

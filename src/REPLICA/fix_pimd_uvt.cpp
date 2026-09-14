@@ -284,13 +284,6 @@ int FixPIMDUVT::unpack_subclass_restart(const double *list, int n)
 
 /* ---------------------------------------------------------------------- */
 
-int FixPIMDUVT::subclass_vector_size() const
-{
-  return 9;
-}
-
-/* ---------------------------------------------------------------------- */
-
 double FixPIMDUVT::compute_subclass_vector(int n) const
 {
   if (n == 0) return *Ne;

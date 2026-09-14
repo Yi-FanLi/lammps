@@ -434,7 +434,11 @@ void FixPIMDNVE::post_force(int /*flag*/)
   }
 
   compute_pote();
-  if (method == NMPIMD || method == CMD) prepare_normal_mode_forces();
+  if (method == NMPIMD || method == CMD) {
+    // Forward: bead forces to normal-mode forces.
+    inter_replica_comm(atom->f);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
+  }
   after_force_transform_hook();
 
   schedule_common_computes();
@@ -496,13 +500,6 @@ void FixPIMDNVE::prepare_common_virial_state()
   }
 }
 
-void FixPIMDNVE::prepare_normal_mode_forces()
-{
-  // Forward: bead forces to normal-mode forces.
-  inter_replica_comm(atom->f);
-  nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
-}
-
 void FixPIMDNVE::schedule_common_computes()
 {
   c_pe->addstep(update->ntimestep + 1);
@@ -522,11 +519,6 @@ int FixPIMDNVE::pack_subclass_restart(double *, int n) const
 int FixPIMDNVE::unpack_subclass_restart(const double *, int n)
 {
   return n;
-}
-
-int FixPIMDNVE::subclass_vector_size() const
-{
-  return 0;
 }
 
 double FixPIMDNVE::compute_subclass_vector(int) const
@@ -944,11 +936,6 @@ void FixPIMDNVE::remove_com_motion()
   }
 }
 
-double FixPIMDNVE::estimator_atom_count() const
-{
-  return static_cast<double>(group->count(igroup));
-}
-
 double FixPIMDNVE::local_kinetic_energy_sum() const
 {
   double kine = 0.0;
@@ -962,47 +949,6 @@ double FixPIMDNVE::local_kinetic_energy_sum() const
   return kine * force->mvv2e;
 }
 
-double FixPIMDNVE::local_normal_mode_spring_energy_sum() const
-{
-  double energy = 0.0;
-  double **x = atom->x;
-  double *_mass = atom->mass;
-  int *mask = atom->mask;
-  int *type = atom->type;
-  int nlocal = atom->nlocal;
-
-  for (int i = 0; i < nlocal; i++) {
-    if (!(mask[i] & groupbit)) continue;
-    energy += 0.5 * _mass[type[i]] * fbond * lam[universe->iworld] *
-        (x[i][0] * x[i][0] + x[i][1] * x[i][1] + x[i][2] * x[i][2]);
-  }
-  return energy;
-}
-
-double FixPIMDNVE::local_xf_virial_sum() const
-{
-  double xf = 0.0;
-  int nlocal = atom->nlocal;
-  int *mask = atom->mask;
-  for (int i = 0; i < nlocal; i++) {
-    if (!(mask[i] & groupbit)) continue;
-    for (int j = 0; j < 3; j++) xf += x_unwrap[i][j] * atom->f[i][j];
-  }
-  return xf;
-}
-
-double FixPIMDNVE::local_centroid_virial_sum() const
-{
-  double xcf = 0.0;
-  int nlocal = atom->nlocal;
-  int *mask = atom->mask;
-  for (int i = 0; i < nlocal; i++) {
-    if (!(mask[i] & groupbit)) continue;
-    for (int j = 0; j < 3; j++) xcf += (x_unwrap[i][j] - xc[i][j]) * atom->f[i][j];
-  }
-  return xcf;
-}
-
 void FixPIMDNVE::reduce_bead_and_total(double local_value, double &bead_value, double &total_value) const
 {
   MPI_Allreduce(&local_value, &bead_value, 1, MPI_DOUBLE, MPI_SUM, world);
@@ -1010,24 +956,29 @@ void FixPIMDNVE::reduce_bead_and_total(double local_value, double &bead_value, d
   total_value /= universe->procs_per_world[universe->iworld];
 }
 
-double FixPIMDNVE::reduce_partition_scalar(double partition_scalar) const
-{
-  double total_scalar = 0.0;
-  MPI_Allreduce(&partition_scalar, &total_scalar, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
-  return total_scalar;
-}
-
 void FixPIMDNVE::compute_xf_vir()
 {
   vir_ = 0.0;
-  double xf = local_xf_virial_sum();
+  double xf = 0.0;
+  int nlocal = atom->nlocal;
+  int *mask = atom->mask;
+  for (int i = 0; i < nlocal; i++) {
+    if (!(mask[i] & groupbit)) continue;
+    for (int j = 0; j < 3; j++) xf += x_unwrap[i][j] * atom->f[i][j];
+  }
   MPI_Allreduce(&xf, &vir_, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
 void FixPIMDNVE::compute_cvir()
 {
   centroid_vir = 0.0;
-  double xcf = local_centroid_virial_sum();
+  double xcf = 0.0;
+  int nlocal = atom->nlocal;
+  int *mask = atom->mask;
+  for (int i = 0; i < nlocal; i++) {
+    if (!(mask[i] & groupbit)) continue;
+    for (int j = 0; j < 3; j++) xcf += (x_unwrap[i][j] - xc[i][j]) * atom->f[i][j];
+  }
   MPI_Allreduce(&xcf, &centroid_vir, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
@@ -1058,7 +1009,18 @@ void FixPIMDNVE::compute_spring_energy()
 {
   total_spring_energy = se_bead = 0.0;
   if (method == NMPIMD || method == CMD) {
-    spring_energy = local_normal_mode_spring_energy_sum();
+    spring_energy = 0.0;
+    double **x = atom->x;
+    double *_mass = atom->mass;
+    int *mask = atom->mask;
+    int *type = atom->type;
+    int nlocal = atom->nlocal;
+
+    for (int i = 0; i < nlocal; i++) {
+      if (!(mask[i] & groupbit)) continue;
+      spring_energy += 0.5 * _mass[type[i]] * fbond * lam[universe->iworld] *
+          (x[i][0] * x[i][0] + x[i][1] * x[i][1] + x[i][2] * x[i][2]);
+    }
   } else if (method != PIMD) {
     error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
   }
@@ -1072,7 +1034,7 @@ void FixPIMDNVE::compute_pote()
   c_pe->compute_scalar();
   pe_bead = c_pe->scalar;
   double pot_energy_partition = pe_bead / universe->procs_per_world[universe->iworld];
-  pote = reduce_partition_scalar(pot_energy_partition);
+  MPI_Allreduce(&pot_energy_partition, &pote, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
 void FixPIMDNVE::compute_tote()
@@ -1082,20 +1044,20 @@ void FixPIMDNVE::compute_tote()
 
 void FixPIMDNVE::compute_t_prim()
 {
-  t_prim = 1.5 * estimator_atom_count() * np * force->boltz * temp -
+  t_prim = 1.5 * group->count(igroup) * np * force->boltz * temp -
       total_spring_energy * inverse_np;
 }
 
 void FixPIMDNVE::compute_t_vir()
 {
   t_vir = -0.5 * inverse_np * vir_;
-  t_cv = 1.5 * estimator_atom_count() * force->boltz * temp - 0.5 * inverse_np * centroid_vir;
+  t_cv = 1.5 * group->count(igroup) * force->boltz * temp - 0.5 * inverse_np * centroid_vir;
 }
 
 void FixPIMDNVE::compute_p_prim()
 {
   double inv_volume = 1.0 / (domain->xprd * domain->yprd * domain->zprd);
-  p_prim = estimator_atom_count() * np * force->boltz * temp * inv_volume -
+  p_prim = static_cast<double>(group->count(igroup)) * np * force->boltz * temp * inv_volume -
       (2.0 / 3.0) * inv_volume * total_spring_energy;
   p_prim *= force->nktv2p;
 }
@@ -1114,27 +1076,17 @@ void FixPIMDNVE::compute_p_cv()
 
 void FixPIMDNVE::write_restart(FILE *fp)
 {
-  int nsize = size_restart_global();
+  int nsize = base_restart_size() + subclass_restart_size();
   double *list;
   memory->create(list, nsize, "FixPIMDNVE:list");
-  pack_restart_data(list);
+  int n = pack_base_restart(list);
+  pack_subclass_restart(list, n);
   if (comm->me == 0) {
     int size = nsize * sizeof(double);
     fwrite(&size, sizeof(int), 1, fp);
     if (nsize) fwrite(list, sizeof(double), nsize, fp);
   }
   memory->destroy(list);
-}
-
-int FixPIMDNVE::size_restart_global()
-{
-  return base_restart_size() + subclass_restart_size();
-}
-
-int FixPIMDNVE::pack_restart_data(double *list)
-{
-  int n = pack_base_restart(list);
-  return pack_subclass_restart(list, n);
 }
 
 int FixPIMDNVE::base_restart_size() const

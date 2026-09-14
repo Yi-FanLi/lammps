@@ -54,7 +54,6 @@ class FixPIMDUVT : public FixPIMDNVT {
   int subclass_restart_size() const override;
   int pack_subclass_restart(double *, int) const override;
   int unpack_subclass_restart(const double *, int) override;
-  int subclass_vector_size() const override;
   double compute_subclass_vector(int) const override;
 
   void compute_mu_target();

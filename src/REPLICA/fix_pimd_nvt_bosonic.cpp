@@ -46,7 +46,6 @@ FixPIMDBNVT::FixPIMDBNVT(LAMMPS *lmp, int narg, char **arg) :
       error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
   }
 
-  if (t_period <= 0.0) error->all(FLERR, "Temperature damping for fix {} must be > 0.0", style);
 
   if (method != PIMD)
     error->all(FLERR, "Fix pimd/nvt/bosonic only supports method pimd");

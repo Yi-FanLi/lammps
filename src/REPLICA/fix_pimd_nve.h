@@ -114,7 +114,7 @@ class FixPIMDNVE : public Fix {
   void nmpimd_transform(double **, double **, double *);
 
   void collect_xc();
-  void b_step();    // integrate for dt/2 according to B part (v <- v + f * dt/2)
+  virtual void b_step();    // integrate for dt/2 according to B part (v <- v + f * dt/2)
   void q_step();
   virtual void qc_step();
   virtual void a_step();

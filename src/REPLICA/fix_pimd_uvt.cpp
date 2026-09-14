@@ -46,7 +46,6 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
       error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
   }
 
-  if (t_period <= 0.0) error->all(FLERR, "Temperature damping for fix {} must be > 0.0", style);
   finish_nuclear_constructor_setup();
   if (method != NMPIMD) error->all(FLERR, "Fix {} only supports method nmpimd", style);
   if (!mu_flag) error->all(FLERR, "Missing mu keyword for fix {}", style);
@@ -167,9 +166,9 @@ void FixPIMDUVT::thermostat_step()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDUVT::force_half_step()
+void FixPIMDUVT::b_step()
 {
-  b_step();
+  FixPIMDNVE::b_step();
 
   if (ustat_flag) {
     double dtfm = dthalf / *Ne_mass;
@@ -180,9 +179,9 @@ void FixPIMDUVT::force_half_step()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDUVT::centroid_position_half_step()
+void FixPIMDUVT::qc_step()
 {
-  qc_step();
+  FixPIMDNVE::qc_step();
 
   if (ustat_flag) {
     if (universe->iworld == 0) *Ne += dtv * (*Ne_dot);

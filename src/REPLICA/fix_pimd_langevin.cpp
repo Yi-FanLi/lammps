@@ -404,10 +404,7 @@ void FixPIMDLangevin::setup(int vflag)
     unmap_coordinates(atom->x, atom->image);
     // Forward: bead coordinates to normal modes.
     inter_replica_comm(atom->x);
-    if (cmode == SINGLE_PROC)
-      nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
-    else
-      nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
   } else if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
     prepare_coordinates();
@@ -428,10 +425,7 @@ void FixPIMDLangevin::setup(int vflag)
   if (method == NMPIMD) {
     // Backward: normal modes to bead coordinates.
     inter_replica_comm(atom->x);
-    if (cmode == SINGLE_PROC)
-      nmpimd_transform(bufsortedall, atom->x, M_xp2x[universe->iworld]);
-    else
-      nmpimd_transform(bufbeads, atom->x, M_xp2x[universe->iworld]);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
   }
   remap_coordinates(atom->x, atom->image);
 
@@ -459,10 +453,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       unmap_coordinates(atom->x, atom->image);
       // Forward: bead coordinates to normal modes.
       inter_replica_comm(atom->x);
-      if (cmode == SINGLE_PROC)
-        nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
-      else
-        nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
+      nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
       qc_step();
       a_step();
       qc_step();
@@ -488,10 +479,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       unmap_coordinates(atom->x, atom->image);
       // Forward: bead coordinates to normal modes.
       inter_replica_comm(atom->x);
-      if (cmode == SINGLE_PROC)
-        nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
-      else
-        nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
+      nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
       qc_step();
       a_step();
     } else if (method == PIMD) {
@@ -532,10 +520,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
     compute_p_prim();
     // Backward: normal modes to bead coordinates.
     inter_replica_comm(atom->x);
-    if (cmode == SINGLE_PROC)
-      nmpimd_transform(bufsortedall, atom->x, M_xp2x[universe->iworld]);
-    else
-      nmpimd_transform(bufbeads, atom->x, M_xp2x[universe->iworld]);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
   }
   remap_coordinates(atom->x, atom->image);
 }
@@ -592,10 +577,7 @@ void FixPIMDLangevin::post_force(int /*flag*/)
   if (method == NMPIMD) {
     // Forward: bead forces to normal-mode forces.
     inter_replica_comm(atom->f);
-    if (cmode == SINGLE_PROC)
-      nmpimd_transform(bufsortedall, atom->f, M_x2xp[universe->iworld]);
-    else
-      nmpimd_transform(bufbeads, atom->f, M_x2xp[universe->iworld]);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
   }
 
   schedule_common_computes();
@@ -605,9 +587,7 @@ void FixPIMDLangevin::post_force(int /*flag*/)
 
 void FixPIMDLangevin::end_of_step()
 {
-  compute_totke();
-  compute_p_cv();
-  compute_tote();
+  FixPIMDNVE::end_of_step();
   if (pstat_flag) compute_totenthalpy();
 }
 

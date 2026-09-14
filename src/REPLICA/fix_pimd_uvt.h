@@ -39,8 +39,8 @@ class FixPIMDUVT : public FixPIMDNVT {
   void setup_subclass_state() override;
   void after_force_transform_hook() override;
   void thermostat_step() override;
-  void force_half_step() override;
-  void centroid_position_half_step() override;
+  void b_step() override;
+  void qc_step() override;
 
   bool thermostat_chain_active() const override;
   bool ne_thermostat_participates() const;

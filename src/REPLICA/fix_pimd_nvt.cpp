@@ -58,8 +58,6 @@ FixPIMDNVT::FixPIMDNVT(LAMMPS *lmp, int narg, char **arg, bool defer_setup) :
   ecouple_work = 0.0;
   dthalf = dt4 = dt8 = 0.0;
 
-  fixedpoint[0] = fixedpoint[1] = fixedpoint[2] = 0.0;
-
   scalar_flag = 1;
   extscalar = 1;
   ecouple_flag = 1;
@@ -75,7 +73,6 @@ FixPIMDNVT::FixPIMDNVT(LAMMPS *lmp, int narg, char **arg, bool defer_setup) :
       error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
   }
 
-  if (t_period <= 0.0) error->all(FLERR, "Temperature damping for fix {} must be > 0.0", style);
   finish_nuclear_constructor_setup();
 }
 
@@ -146,6 +143,8 @@ bool FixPIMDNVT::parse_keyword(int narg, char **arg, int &i)
 
 void FixPIMDNVT::finish_nuclear_constructor_setup()
 {
+  if (t_period <= 0.0) error->all(FLERR, "Temperature damping for fix {} must be > 0.0", style);
+
   if (tstat_flag) {
     eta = new double[mtchain];
     eta_dot = new double[mtchain + 1];
@@ -157,10 +156,6 @@ void FixPIMDNVT::finish_nuclear_constructor_setup()
   }
 
   finish_constructor_setup();
-
-  fixedpoint[0] = 0.5 * (domain->boxlo[0] + domain->boxhi[0]);
-  fixedpoint[1] = 0.5 * (domain->boxlo[1] + domain->boxhi[1]);
-  fixedpoint[2] = 0.5 * (domain->boxlo[2] + domain->boxhi[2]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -198,15 +193,15 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
 {
   if (integrator == OBABO) {
     thermostat_step();
-    force_half_step();
+    b_step();
     if (method == NMPIMD || method == CMD) {
       unmap_coordinates(atom->x, atom->image);
       // Forward: bead coordinates to normal modes.
       inter_replica_comm(atom->x);
       nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
-      centroid_position_half_step();
+      qc_step();
       a_step();
-      centroid_position_half_step();
+      qc_step();
       a_step();
     } else if (method == PIMD) {
       unmap_coordinates(atom->x, atom->image);
@@ -216,13 +211,13 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
       error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
     }
   } else if (integrator == BAOAB) {
-    force_half_step();
+    b_step();
     if (method == NMPIMD || method == CMD) {
       unmap_coordinates(atom->x, atom->image);
       // Forward: bead coordinates to normal modes.
       inter_replica_comm(atom->x);
       nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
-      centroid_position_half_step();
+      qc_step();
       a_step();
     } else if (method == PIMD) {
       unmap_coordinates(atom->x, atom->image);
@@ -232,7 +227,7 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
     }
     thermostat_step();
     if (method == NMPIMD || method == CMD) {
-      centroid_position_half_step();
+      qc_step();
       a_step();
     } else if (method == PIMD) {
       q_step();
@@ -263,7 +258,7 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
 
 void FixPIMDNVT::final_integrate()
 {
-  force_half_step();
+  b_step();
 
   if (integrator == OBABO) {
     thermostat_step();
@@ -549,20 +544,6 @@ void FixPIMDNVT::thermostat_step()
     o_step();
     if (removecomflag) remove_com_motion();
   }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDNVT::force_half_step()
-{
-  b_step();
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDNVT::centroid_position_half_step()
-{
-  qc_step();
 }
 
 /* ---------------------------------------------------------------------- */

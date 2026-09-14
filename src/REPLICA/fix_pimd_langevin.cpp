@@ -705,15 +705,7 @@ void FixPIMDLangevin::qc_step()
   double oldlo, oldhi;
 
   if (!pstat_flag) {
-    if (universe->iworld == 0) {
-      for (int i = 0; i < nlocal; i++) {
-        if (mask[i] & groupbit) {
-          x[i][0] += dtv * v[i][0];
-          x[i][1] += dtv * v[i][1];
-          x[i][2] += dtv * v[i][2];
-        }
-      }
-    }
+    FixPIMDNVE::qc_step();
   } else {
     if (universe->iworld == 0) {
       double expp[3], expq[3];
@@ -761,44 +753,6 @@ void FixPIMDLangevin::qc_step()
     domain->set_global_box();
     domain->set_local_box();
     if (force->kspace) force->kspace->setup();
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::a_step()
-{
-  // used for NMPIMD
-  // use analytical solution of harmonic oscillator to evolve the non-centroid modes
-  int nlocal = atom->nlocal;
-  int *mask = atom->mask;
-  double **x = atom->x;
-  double **v = atom->v;
-  double x0, x1, x2, v0, v1, v2;    // three components of x[i] and v[i]
-
-  if (universe->iworld != 0) {
-    for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) {
-        x0 = x[i][0];
-        x1 = x[i][1];
-        x2 = x[i][2];
-        v0 = v[i][0];
-        v1 = v[i][1];
-        v2 = v[i][2];
-        x[i][0] = Lan_c[universe->iworld] * x0 +
-            1.0 / _omega_k[universe->iworld] * Lan_s[universe->iworld] * v0;
-        x[i][1] = Lan_c[universe->iworld] * x1 +
-            1.0 / _omega_k[universe->iworld] * Lan_s[universe->iworld] * v1;
-        x[i][2] = Lan_c[universe->iworld] * x2 +
-            1.0 / _omega_k[universe->iworld] * Lan_s[universe->iworld] * v2;
-        v[i][0] = -1.0 * _omega_k[universe->iworld] * Lan_s[universe->iworld] * x0 +
-            Lan_c[universe->iworld] * v0;
-        v[i][1] = -1.0 * _omega_k[universe->iworld] * Lan_s[universe->iworld] * x1 +
-            Lan_c[universe->iworld] * v1;
-        v[i][2] = -1.0 * _omega_k[universe->iworld] * Lan_s[universe->iworld] * x2 +
-            Lan_c[universe->iworld] * v2;
-      }
-    }
   }
 }
 

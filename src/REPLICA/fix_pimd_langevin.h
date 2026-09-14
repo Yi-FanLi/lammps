@@ -105,9 +105,7 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   int tstat_flag;    // tstat_flat = 1 if thermostat if used
   void langevin_init();
-  void
-  a_step();    // integrate for dt/2 according to A part (non-centroid mode, harmonic force between replicas)
-  void qc_step();    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
+  void qc_step() override;    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
   void o_step();     // integrate for dt according to O part (O-U process, for thermostating)
   void q_step();     // integrate for dt/2 for all the beads (x <- x + v * dt/2)
 

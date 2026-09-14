@@ -106,116 +106,18 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   pstyle = ISO;
   totenthalpy = 0.0;
 
-  int seed = -1;
+  seed = -1;
 
   for (int i = 0; i < 6; i++) {
     p_flag[i] = 0;
     p_target[i] = 0.0;
   }
 
+  // process keywords
+
   for (int i = 3; i < narg;) {
-    if (i + 2 > narg)
-      utils::missing_cmd_args(FLERR, fmt::format("fix {} {}", style, arg[i]), error);
-    if (strcmp(arg[i], "method") == 0) {
-      if (strcmp(arg[i + 1], "nmpimd") == 0)
-        method = NMPIMD;
-      else if (strcmp(arg[i + 1], "pimd") == 0)
-        method = PIMD;
-      else
-        error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
-    } else if (strcmp(arg[i], "ensemble") == 0) {
-      if (strcmp(arg[i + 1], "nve") == 0) {
-        ensemble = NVE;
-        tstat_flag = 0;
-        pstat_flag = 0;
-      } else if (strcmp(arg[i + 1], "nvt") == 0) {
-        ensemble = NVT;
-        tstat_flag = 1;
-        pstat_flag = 0;
-      } else if (strcmp(arg[i + 1], "nph") == 0) {
-        ensemble = NPH;
-        tstat_flag = 0;
-        pstat_flag = 1;
-      } else if (strcmp(arg[i + 1], "npt") == 0) {
-        ensemble = NPT;
-        tstat_flag = 1;
-        pstat_flag = 1;
-      } else
-        error->universe_all(FLERR,
-                            fmt::format("Unknown ensemble parameter for fix {}. Only nve, nvt, "
-                                        "nph, and npt ensembles are supported!",
-                                        style));
-    } else if (strcmp(arg[i], "scale") == 0) {
-      if (method == PIMD)
-        error->universe_all(
-            FLERR,
-            "The scale parameter of the PILE_L thermostat is not supported for method pimd. Delete "
-            "scale parameter if you do want to use method pimd.");
-      pilescale = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (pilescale < 0.0)
-        error->universe_all(FLERR, fmt::format("Invalid PILE_L scale value for fix {}", style));
-    } else if (strcmp(arg[i], "thermostat") == 0) {
-      if (strcmp(arg[i + 1], "PILE_L") == 0) {
-        if (i + 3 > narg)
-          utils::missing_cmd_args(FLERR, fmt::format("fix {} thermostat", style), error);
-        thermostat = PILE_L;
-        seed = utils::inumeric(FLERR, arg[i + 2], false, lmp);
-        i++;
-      }
-    } else if (strcmp(arg[i], "tau") == 0) {
-      tau = utils::numeric(FLERR, arg[i + 1], false, lmp);
-    } else if (strcmp(arg[i], "barostat") == 0) {
-      if (strcmp(arg[i + 1], "MTTK") == 0) {
-        barostat = MTTK;
-      } else if (strcmp(arg[i + 1], "BZP") == 0) {
-        barostat = BZP;
-      } else
-        error->universe_all(FLERR, fmt::format("Unknown barostat parameter for fix {}", style));
-    } else if (strcmp(arg[i], "iso") == 0) {
-      pstyle = ISO;
-      p_flag[0] = p_flag[1] = p_flag[2] = 1;
-      Pext = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      p_target[0] = p_target[1] = p_target[2] = Pext;
-      pdim = 3;
-    } else if (strcmp(arg[i], "aniso") == 0) {
-      pstyle = ANISO;
-      p_flag[0] = p_flag[1] = p_flag[2] = 1;
-      Pext = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      p_target[0] = p_target[1] = p_target[2] = Pext;
-      pdim = 3;
-    } else if (strcmp(arg[i], "x") == 0) {
-      pstyle = ANISO;
-      p_flag[0] = 1;
-      p_target[0] = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      pdim++;
-    } else if (strcmp(arg[i], "y") == 0) {
-      pstyle = ANISO;
-      p_flag[1] = 1;
-      p_target[1] = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      pdim++;
-    } else if (strcmp(arg[i], "z") == 0) {
-      pstyle = ANISO;
-      p_flag[2] = 1;
-      p_target[2] = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      pdim++;
-    } else if (strcmp(arg[i], "taup") == 0) {
-      tau_p = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (tau_p <= 0.0)
-        error->universe_all(FLERR, fmt::format("Invalid tau_p value for fix {}", style));
-    } else if (strcmp(arg[i], "fixcom") == 0) {
-      if (strcmp(arg[i + 1], "yes") == 0)
-        removecomflag = 1;
-      else if (strcmp(arg[i + 1], "no") == 0)
-        removecomflag = 0;
-    } else if (strcmp(arg[i], "lj") == 0 || strcmp(arg[i], "removecom") == 0) {
-      // These base options are not part of the Langevin command syntax.
+    if (!parse_keyword(narg, arg, i))
       error->universe_all(FLERR, fmt::format("Unknown keyword {} for fix {}", arg[i], style));
-    } else if (FixPIMDNVE::parse_keyword(narg, arg, i)) {
-      continue;
-    } else if (strcmp(arg[i], "") != 0) {
-      error->universe_all(FLERR, fmt::format("Unknown keyword {} for fix {}", arg[i], style));
-    }
-    i += 2;
   }
 
   if (pstat_flag && !pdim)
@@ -306,6 +208,113 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   if (atom->nmax > maxxc) reallocate_xc();
   if (xcall == nullptr) memory->create(xcall, ntotal * 3, "FixPIMDLangevin:xcall");
 
+}
+
+/* ---------------------------------------------------------------------- */
+
+bool FixPIMDLangevin::parse_keyword(int narg, char **arg, int &i)
+{
+  if (i + 2 > narg)
+    utils::missing_cmd_args(FLERR, fmt::format("fix {} {}", style, arg[i]), error);
+  if (strcmp(arg[i], "method") == 0) {
+    if (strcmp(arg[i + 1], "nmpimd") == 0)
+      method = NMPIMD;
+    else if (strcmp(arg[i + 1], "pimd") == 0)
+      method = PIMD;
+    else
+      error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
+  } else if (strcmp(arg[i], "ensemble") == 0) {
+    if (strcmp(arg[i + 1], "nve") == 0) {
+      ensemble = NVE;
+      tstat_flag = 0;
+      pstat_flag = 0;
+    } else if (strcmp(arg[i + 1], "nvt") == 0) {
+      ensemble = NVT;
+      tstat_flag = 1;
+      pstat_flag = 0;
+    } else if (strcmp(arg[i + 1], "nph") == 0) {
+      ensemble = NPH;
+      tstat_flag = 0;
+      pstat_flag = 1;
+    } else if (strcmp(arg[i + 1], "npt") == 0) {
+      ensemble = NPT;
+      tstat_flag = 1;
+      pstat_flag = 1;
+    } else
+      error->universe_all(FLERR,
+                          fmt::format("Unknown ensemble parameter for fix {}. Only nve, nvt, "
+                                      "nph, and npt ensembles are supported!",
+                                      style));
+  } else if (strcmp(arg[i], "scale") == 0) {
+    if (method == PIMD)
+      error->universe_all(
+          FLERR,
+          "The scale parameter of the PILE_L thermostat is not supported for method pimd. Delete "
+          "scale parameter if you do want to use method pimd.");
+    pilescale = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    if (pilescale < 0.0)
+      error->universe_all(FLERR, fmt::format("Invalid PILE_L scale value for fix {}", style));
+  } else if (strcmp(arg[i], "thermostat") == 0) {
+    if (strcmp(arg[i + 1], "PILE_L") == 0) {
+      if (i + 3 > narg)
+        utils::missing_cmd_args(FLERR, fmt::format("fix {} thermostat", style), error);
+      thermostat = PILE_L;
+      seed = utils::inumeric(FLERR, arg[i + 2], false, lmp);
+      i++;
+    }
+  } else if (strcmp(arg[i], "tau") == 0) {
+    tau = utils::numeric(FLERR, arg[i + 1], false, lmp);
+  } else if (strcmp(arg[i], "barostat") == 0) {
+    if (strcmp(arg[i + 1], "MTTK") == 0) {
+      barostat = MTTK;
+    } else if (strcmp(arg[i + 1], "BZP") == 0) {
+      barostat = BZP;
+    } else
+      error->universe_all(FLERR, fmt::format("Unknown barostat parameter for fix {}", style));
+  } else if (strcmp(arg[i], "iso") == 0) {
+    pstyle = ISO;
+    p_flag[0] = p_flag[1] = p_flag[2] = 1;
+    Pext = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    p_target[0] = p_target[1] = p_target[2] = Pext;
+    pdim = 3;
+  } else if (strcmp(arg[i], "aniso") == 0) {
+    pstyle = ANISO;
+    p_flag[0] = p_flag[1] = p_flag[2] = 1;
+    Pext = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    p_target[0] = p_target[1] = p_target[2] = Pext;
+    pdim = 3;
+  } else if (strcmp(arg[i], "x") == 0) {
+    pstyle = ANISO;
+    p_flag[0] = 1;
+    p_target[0] = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    pdim++;
+  } else if (strcmp(arg[i], "y") == 0) {
+    pstyle = ANISO;
+    p_flag[1] = 1;
+    p_target[1] = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    pdim++;
+  } else if (strcmp(arg[i], "z") == 0) {
+    pstyle = ANISO;
+    p_flag[2] = 1;
+    p_target[2] = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    pdim++;
+  } else if (strcmp(arg[i], "taup") == 0) {
+    tau_p = utils::numeric(FLERR, arg[i + 1], false, lmp);
+    if (tau_p <= 0.0)
+      error->universe_all(FLERR, fmt::format("Invalid tau_p value for fix {}", style));
+  } else if (strcmp(arg[i], "fixcom") == 0) {
+    if (strcmp(arg[i + 1], "yes") == 0)
+      removecomflag = 1;
+    else if (strcmp(arg[i + 1], "no") == 0)
+      removecomflag = 0;
+  } else if (strcmp(arg[i], "lj") == 0 || strcmp(arg[i], "removecom") == 0) {
+    // These base options are not part of the Langevin command syntax.
+    error->universe_all(FLERR, fmt::format("Unknown keyword {} for fix {}", arg[i], style));
+  } else {
+    return FixPIMDNVE::parse_keyword(narg, arg, i);
+  }
+  i += 2;
+  return true;
 }
 
 /* ---------------------------------------------------------------------- */

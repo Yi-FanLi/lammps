@@ -45,6 +45,9 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void end_of_step() override;
 
  protected:
+  bool parse_keyword(int, char **, int &) override;
+  int seed;
+
   // System setting variables
   int thermostat;          // NHC or PILE_L
   int barostat;            // BZP

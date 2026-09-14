@@ -22,8 +22,6 @@ FixStyle(pimd/nve,FixPIMDNVE);
 
 #include "fix.h"
 
-#include <functional>
-
 namespace LAMMPS_NS {
 
 class Compute;
@@ -32,7 +30,7 @@ class FixPIMDNVE : public Fix {
  public:
   enum { PIMD, NMPIMD, CMD };
 
-  FixPIMDNVE(class LAMMPS *, int, char **);
+  FixPIMDNVE(class LAMMPS *, int, char **, bool defer_setup = false);
   ~FixPIMDNVE() override;
 
   int setmask() override;
@@ -49,13 +47,8 @@ class FixPIMDNVE : public Fix {
   void restart(char *) override;
 
  protected:
-  using KeywordParser = std::function<bool(int, char **, int &)>;
-
-  FixPIMDNVE(class LAMMPS *, int, char **, bool);
-  void init_defaults();
   void finish_constructor_setup();
-  void parse_arguments(int, char **, const KeywordParser &);
-  bool parse_common_keyword(int, char **, int &);
+  virtual bool parse_keyword(int, char **, int &);
 
   int method;
   int integrator;

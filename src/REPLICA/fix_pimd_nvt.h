@@ -27,7 +27,7 @@ namespace LAMMPS_NS {
 
 class FixPIMDNVT : public FixPIMDNVE {
  public:
-  FixPIMDNVT(class LAMMPS *, int, char **);
+  FixPIMDNVT(class LAMMPS *, int, char **, bool defer_setup = false);
   ~FixPIMDNVT() override;
 
   void initial_integrate(int) override;
@@ -36,10 +36,7 @@ class FixPIMDNVT : public FixPIMDNVE {
   std::string get_thermo_colname(int) override;
 
  protected:
-  FixPIMDNVT(class LAMMPS *, int, char **, bool);
-  void init_nvt_defaults();
-  void parse_nvt_arguments(int, char **, const KeywordParser &);
-  bool parse_nvt_keyword(int, char **, int &);
+  bool parse_keyword(int, char **, int &) override;
   void finish_nuclear_constructor_setup();
 
   double fixedpoint[3];

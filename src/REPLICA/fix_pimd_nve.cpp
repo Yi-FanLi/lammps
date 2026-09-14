@@ -41,7 +41,14 @@ enum { PHYSICAL, NORMAL };
 enum { BAOAB, OBABO };
 enum { SINGLE_PROC, MULTI_PROC };
 
-void FixPIMDNVE::init_defaults()
+FixPIMDNVE::FixPIMDNVE(LAMMPS *lmp, int narg, char **arg, bool defer_setup) :
+    Fix(lmp, narg, arg), mass(nullptr), rootworld(MPI_COMM_NULL), plansend(nullptr),
+    planrecv(nullptr), tagsend(nullptr), tagrecv(nullptr), bufsend(nullptr), bufrecv(nullptr),
+    bufbeads(nullptr), bufsorted(nullptr), bufsortedall(nullptr), tagsendall(nullptr),
+    tagrecvall(nullptr), bufsendall(nullptr), bufrecvall(nullptr), counts(nullptr),
+    displacements(nullptr), lam(nullptr), M_x2xp(nullptr), M_xp2x(nullptr), modeindex(nullptr),
+    _omega_k(nullptr), Lan_s(nullptr), Lan_c(nullptr), xc(nullptr), xcall(nullptr),
+    x_unwrap(nullptr), id_pe(nullptr), id_press(nullptr), c_pe(nullptr), c_press(nullptr)
 {
   restart_global = 1;
   time_integrate = 1;
@@ -82,9 +89,26 @@ void FixPIMDNVE::init_defaults()
   hbar = 0.0;
   omega_np = 0.0;
   fbond = 0.0;
+
+  if (domain->dimension != 3)
+    error->universe_all(FLERR, fmt::format("Fix {} requires a 3d system", style));
+  if (narg < 3) utils::missing_cmd_args(FLERR, std::string("fix ") + style, error);
+  // Derived styles initialize their own options before parsing the full command.
+  if (defer_setup) return;
+
+  // process keywords
+
+  for (int i = 3; i < narg;) {
+    if (!parse_keyword(narg, arg, i))
+      error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
+  }
+  if (method == CMD) error->all(FLERR, "Fix pimd/nve does not support method cmd");
+  finish_constructor_setup();
 }
 
-bool FixPIMDNVE::parse_common_keyword(int narg, char **arg, int &i)
+/* ---------------------------------------------------------------------- */
+
+bool FixPIMDNVE::parse_keyword(int narg, char **arg, int &i)
 {
   if (strcmp(arg[i], "method") == 0) {
     if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} method", style), error);
@@ -163,37 +187,7 @@ bool FixPIMDNVE::parse_common_keyword(int narg, char **arg, int &i)
   return false;
 }
 
-void FixPIMDNVE::parse_arguments(int narg, char **arg, const KeywordParser &subclass_parser)
-{
-  for (int i = 3; i < narg;) {
-    if (parse_common_keyword(narg, arg, i)) continue;
-    if (subclass_parser && subclass_parser(narg, arg, i)) continue;
-    error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
-  }
-}
-
-FixPIMDNVE::FixPIMDNVE(LAMMPS *lmp, int narg, char **arg, bool) :
-    Fix(lmp, narg, arg), mass(nullptr), rootworld(MPI_COMM_NULL), plansend(nullptr),
-    planrecv(nullptr), tagsend(nullptr), tagrecv(nullptr), bufsend(nullptr), bufrecv(nullptr),
-    bufbeads(nullptr), bufsorted(nullptr), bufsortedall(nullptr), tagsendall(nullptr),
-    tagrecvall(nullptr), bufsendall(nullptr), bufrecvall(nullptr), counts(nullptr),
-    displacements(nullptr), lam(nullptr), M_x2xp(nullptr), M_xp2x(nullptr), modeindex(nullptr),
-    _omega_k(nullptr), Lan_s(nullptr), Lan_c(nullptr), xc(nullptr), xcall(nullptr),
-    x_unwrap(nullptr), id_pe(nullptr), id_press(nullptr), c_pe(nullptr), c_press(nullptr)
-{
-  init_defaults();
-
-  if (domain->dimension != 3)
-    error->universe_all(FLERR, fmt::format("Fix {} requires a 3d system", style));
-  if (narg < 3) utils::missing_cmd_args(FLERR, std::string("fix ") + style, error);
-}
-
-FixPIMDNVE::FixPIMDNVE(LAMMPS *lmp, int narg, char **arg) : FixPIMDNVE(lmp, narg, arg, true)
-{
-  parse_arguments(narg, arg, {});
-  if (method == CMD) error->all(FLERR, "Fix pimd/nve does not support method cmd");
-  finish_constructor_setup();
-}
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::finish_constructor_setup()
 {
@@ -212,6 +206,8 @@ void FixPIMDNVE::finish_constructor_setup()
   if (mass == nullptr) mass = new double[atom->ntypes + 1];
   for (int i = 1; i <= atom->ntypes; i++) mass[i] = atom->mass[i] * fmass;
 }
+
+/* ---------------------------------------------------------------------- */
 
 FixPIMDNVE::~FixPIMDNVE()
 {
@@ -255,6 +251,8 @@ FixPIMDNVE::~FixPIMDNVE()
   if (rootworld != MPI_COMM_NULL) MPI_Comm_free(&rootworld);
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::setmask()
 {
   int mask = 0;
@@ -264,6 +262,8 @@ int FixPIMDNVE::setmask()
   mask |= END_OF_STEP;
   return mask;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::init()
 {
@@ -348,6 +348,8 @@ void FixPIMDNVE::init()
   t_prim = t_vir = t_cv = p_cv = p_md = 0.0;
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::setup(int vflag)
 {
   if (method == NMPIMD || method == CMD) {
@@ -377,6 +379,8 @@ void FixPIMDNVE::setup(int vflag)
   post_force(vflag);
   end_of_step();
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::initial_integrate(int /*vflag*/)
 {
@@ -409,10 +413,14 @@ void FixPIMDNVE::initial_integrate(int /*vflag*/)
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::final_integrate()
 {
   b_step();
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::post_force(int /*flag*/)
 {
@@ -442,6 +450,8 @@ void FixPIMDNVE::post_force(int /*flag*/)
   schedule_common_computes();
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::end_of_step()
 {
   compute_totke();
@@ -449,9 +459,15 @@ void FixPIMDNVE::end_of_step()
   compute_tote();
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::setup_subclass_state() {}
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::after_force_transform_hook() {}
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::unmap_coordinates(double **coords, imageint *image)
 {
@@ -460,6 +476,8 @@ void FixPIMDNVE::unmap_coordinates(double **coords, imageint *image)
   int nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) domain->unmap(coords[i], image[i]);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::remap_coordinates(double **coords, imageint *image)
 {
@@ -474,6 +492,8 @@ double **FixPIMDNVE::normal_mode_transform_buffer()
   if (cmode == SINGLE_PROC) return bufsortedall;
   return bufbeads;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::prepare_common_virial_state()
 {
@@ -498,31 +518,43 @@ void FixPIMDNVE::prepare_common_virial_state()
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::schedule_common_computes()
 {
   c_pe->addstep(update->ntimestep + 1);
   c_press->addstep(update->ntimestep + 1);
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::subclass_restart_size() const
 {
   return 0;
 }
+
+/* ---------------------------------------------------------------------- */
 
 int FixPIMDNVE::pack_subclass_restart(double *, int n) const
 {
   return n;
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::unpack_subclass_restart(const double *, int n)
 {
   return n;
 }
 
+/* ---------------------------------------------------------------------- */
+
 double FixPIMDNVE::compute_subclass_vector(int) const
 {
   return 0.0;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::collect_xc()
 {
@@ -554,6 +586,8 @@ void FixPIMDNVE::collect_xc()
   MPI_Bcast(xcall, ntotal * 3, MPI_DOUBLE, 0, universe->uworld);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::b_step()
 {
   // For NMPIMD, force only includes the contribution of external potential.
@@ -574,6 +608,8 @@ void FixPIMDNVE::b_step()
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::q_step()
 {
   int nlocal = atom->nlocal;
@@ -588,6 +624,8 @@ void FixPIMDNVE::q_step()
     x[i][2] += dtv * v[i][2];
   }
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::qc_step()
 {
@@ -604,6 +642,8 @@ void FixPIMDNVE::qc_step()
     }
   }
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::a_step()
 {
@@ -637,6 +677,8 @@ void FixPIMDNVE::a_step()
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::spring_force()
 {
   spring_energy = 0.0;
@@ -668,6 +710,8 @@ void FixPIMDNVE::spring_force()
     spring_energy += 0.5 * ff * (delx2 * delx2 + dely2 * dely2 + delz2 * delz2);
   }
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::nmpimd_init()
 {
@@ -733,6 +777,8 @@ void FixPIMDNVE::nmpimd_init()
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::nmpimd_transform(double **src, double **des, double *vector)
 {
   if (cmode == SINGLE_PROC) {
@@ -757,6 +803,8 @@ void FixPIMDNVE::nmpimd_transform(double **src, double **des, double *vector)
       }
   }
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::comm_init()
 {
@@ -800,6 +848,8 @@ void FixPIMDNVE::comm_init()
   x_last = (universe->iworld - 1 + universe->nworlds) % universe->nworlds;
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::reallocate_xc()
 {
   maxxc = atom->nmax;
@@ -807,12 +857,16 @@ void FixPIMDNVE::reallocate_xc()
   memory->create(xc, maxxc, 3, "FixPIMDNVE:xc");
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::reallocate_x_unwrap()
 {
   maxunwrap = atom->nmax;
   memory->destroy(x_unwrap);
   memory->create(x_unwrap, maxunwrap, 3, "FixPIMDNVE:x_unwrap");
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::reallocate()
 {
@@ -849,6 +903,8 @@ void FixPIMDNVE::reallocate()
     memory->create(displacements, nprocs, "FixPIMDNVE:displacements_multi");
   }
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::inter_replica_comm(double **ptr)
 {
@@ -915,6 +971,8 @@ void FixPIMDNVE::inter_replica_comm(double **ptr)
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::remove_com_motion()
 {
   if (universe->iworld == 0) {
@@ -934,6 +992,8 @@ void FixPIMDNVE::remove_com_motion()
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
 double FixPIMDNVE::local_kinetic_energy_sum() const
 {
   double kine = 0.0;
@@ -947,12 +1007,16 @@ double FixPIMDNVE::local_kinetic_energy_sum() const
   return kine * force->mvv2e;
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::reduce_bead_and_total(double local_value, double &bead_value, double &total_value) const
 {
   MPI_Allreduce(&local_value, &bead_value, 1, MPI_DOUBLE, MPI_SUM, world);
   MPI_Allreduce(&bead_value, &total_value, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
   total_value /= universe->procs_per_world[universe->iworld];
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_xf_vir()
 {
@@ -967,6 +1031,8 @@ void FixPIMDNVE::compute_xf_vir()
   MPI_Allreduce(&xf, &vir_, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::compute_cvir()
 {
   centroid_vir = 0.0;
@@ -979,6 +1045,8 @@ void FixPIMDNVE::compute_cvir()
   }
   MPI_Allreduce(&xcf, &centroid_vir, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_vir()
 {
@@ -996,12 +1064,16 @@ void FixPIMDNVE::compute_vir()
   MPI_Allreduce(MPI_IN_PLACE, &virial[0], 6, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::compute_totke()
 {
   totke = ke_bead = 0.0;
   double kine = local_kinetic_energy_sum();
   reduce_bead_and_total(kine, ke_bead, totke);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_spring_energy()
 {
@@ -1025,6 +1097,8 @@ void FixPIMDNVE::compute_spring_energy()
   reduce_bead_and_total(spring_energy, se_bead, total_spring_energy);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::compute_pote()
 {
   pe_bead = 0.0;
@@ -1035,10 +1109,14 @@ void FixPIMDNVE::compute_pote()
   MPI_Allreduce(&pot_energy_partition, &pote, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::compute_tote()
 {
   tote = totke + pote + total_spring_energy;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_t_prim()
 {
@@ -1046,11 +1124,15 @@ void FixPIMDNVE::compute_t_prim()
       total_spring_energy * inverse_np;
 }
 
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::compute_t_vir()
 {
   t_vir = -0.5 * inverse_np * vir_;
   t_cv = 1.5 * group->count(igroup) * force->boltz * temp - 0.5 * inverse_np * centroid_vir;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_p_prim()
 {
@@ -1059,6 +1141,8 @@ void FixPIMDNVE::compute_p_prim()
       (2.0 / 3.0) * inv_volume * total_spring_energy;
   p_prim *= force->nktv2p;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::compute_p_cv()
 {
@@ -1071,6 +1155,8 @@ void FixPIMDNVE::compute_p_cv()
   }
   MPI_Bcast(&p_cv, 1, MPI_DOUBLE, 0, universe->uworld);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::write_restart(FILE *fp)
 {
@@ -1087,26 +1173,36 @@ void FixPIMDNVE::write_restart(FILE *fp)
   memory->destroy(list);
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::base_restart_size() const
 {
   return 0;
 }
+
+/* ---------------------------------------------------------------------- */
 
 int FixPIMDNVE::pack_base_restart(double *) const
 {
   return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::unpack_base_restart(const double *)
 {
   return 0;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::restart(char *buf)
 {
   auto *list = (double *) buf;
   unpack_subclass_restart(list, unpack_base_restart(list));
 }
+
+/* ---------------------------------------------------------------------- */
 
 double FixPIMDNVE::compute_vector(int n)
 {
@@ -1115,10 +1211,14 @@ double FixPIMDNVE::compute_vector(int n)
   return compute_subclass_vector(n - prefix);
 }
 
+/* ---------------------------------------------------------------------- */
+
 int FixPIMDNVE::nuclear_vector_size() const
 {
   return 10;
 }
+
+/* ---------------------------------------------------------------------- */
 
 double FixPIMDNVE::compute_nuclear_vector(int n) const
 {

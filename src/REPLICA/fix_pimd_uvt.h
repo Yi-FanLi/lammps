@@ -35,8 +35,7 @@ class FixPIMDUVT : public FixPIMDNVT {
   void *extract(const char *, int &) override;
 
  protected:
-  bool parse_uvt_keyword(int, char **, int &);
-  void finish_uvt_constructor_setup();
+  bool parse_keyword(int, char **, int &) override;
   void setup_subclass_state() override;
   void after_force_transform_hook() override;
   void thermostat_step() override;

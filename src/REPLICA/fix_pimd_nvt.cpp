@@ -36,7 +36,9 @@ enum { SINGLE_PROC, MULTI_PROC };
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDNVT::init_nvt_defaults()
+FixPIMDNVT::FixPIMDNVT(LAMMPS *lmp, int narg, char **arg, bool defer_setup) :
+    FixPIMDNVE(lmp, narg, arg, true), eta(nullptr), eta_dot(nullptr), eta_dotdot(nullptr),
+    eta_mass(nullptr), tau_k(nullptr)
 {
   pilescale = 1.0;
   tstat_flag = 1;
@@ -62,25 +64,24 @@ void FixPIMDNVT::init_nvt_defaults()
   extscalar = 1;
   ecouple_flag = 1;
   thermo_modify_colname = 1;
-}
 
-/* ---------------------------------------------------------------------- */
+  if (narg < 4) utils::missing_cmd_args(FLERR, std::string("fix ") + style, error);
+  if (defer_setup) return;
 
-void FixPIMDNVT::parse_nvt_arguments(int narg, char **arg, const KeywordParser &subclass_parser)
-{
+  // process keywords
+
   for (int i = 3; i < narg;) {
-    if (subclass_parser && subclass_parser(narg, arg, i)) continue;
-    if (parse_nvt_keyword(narg, arg, i)) continue;
-    if (FixPIMDNVE::parse_common_keyword(narg, arg, i)) continue;
-    error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
+    if (!parse_keyword(narg, arg, i))
+      error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
   }
 
   if (t_period <= 0.0) error->all(FLERR, "Temperature damping for fix {} must be > 0.0", style);
+  finish_nuclear_constructor_setup();
 }
 
 /* ---------------------------------------------------------------------- */
 
-bool FixPIMDNVT::parse_nvt_keyword(int narg, char **arg, int &i)
+bool FixPIMDNVT::parse_keyword(int narg, char **arg, int &i)
 {
   if (strcmp(arg[i], "ensemble") == 0) {
     if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} ensemble", style), error);
@@ -138,27 +139,7 @@ bool FixPIMDNVT::parse_nvt_keyword(int narg, char **arg, int &i)
   if ((strcmp(arg[i], "seed") == 0) || (strcmp(arg[i], "PILE_L_temp") == 0)) {
     error->all(FLERR, "Legacy thermostat options are not supported by fix {}", style);
   }
-  return false;
-}
-
-/* ---------------------------------------------------------------------- */
-
-FixPIMDNVT::FixPIMDNVT(LAMMPS *lmp, int narg, char **arg, bool) :
-    FixPIMDNVE(lmp, narg, arg, true), eta(nullptr), eta_dot(nullptr), eta_dotdot(nullptr),
-    eta_mass(nullptr), tau_k(nullptr)
-{
-  init_nvt_defaults();
-
-  if (narg < 4) utils::missing_cmd_args(FLERR, std::string("fix ") + style, error);
-}
-
-/* ---------------------------------------------------------------------- */
-
-FixPIMDNVT::FixPIMDNVT(LAMMPS *lmp, int narg, char **arg) :
-    FixPIMDNVT(lmp, narg, arg, true)
-{
-  parse_nvt_arguments(narg, arg, {});
-  finish_nuclear_constructor_setup();
+  return FixPIMDNVE::parse_keyword(narg, arg, i);
 }
 
 /* ---------------------------------------------------------------------- */

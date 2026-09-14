@@ -67,8 +67,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   void comm_init();
   void comm_init_multirank();
-  bool use_base_single_rank_comm() const;
-  bool use_langevin_multirank_comm() const;
   virtual void prepare_coordinates();
   double **normal_mode_transform_buffer() override;
   void inter_replica_comm(double **ptr) override;

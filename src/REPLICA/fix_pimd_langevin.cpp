@@ -374,18 +374,6 @@ FixPIMDLangevin::~FixPIMDLangevin()
 
 /* ---------------------------------------------------------------------- */
 
-bool FixPIMDLangevin::use_base_single_rank_comm() const
-{
-  return comm->nprocs == 1;
-}
-
-/* ---------------------------------------------------------------------- */
-
-bool FixPIMDLangevin::use_langevin_multirank_comm() const
-{
-  return comm->nprocs > 1;
-}
-
 int FixPIMDLangevin::setmask()
 {
   int mask = 0;
@@ -1012,7 +1000,7 @@ void FixPIMDLangevin::spring_force()
 
 void FixPIMDLangevin::comm_init()
 {
-  if (use_base_single_rank_comm()) {
+  if (comm->nprocs == 1) {
     FixPIMDNVE::comm_init();
   } else {
     comm_init_multirank();
@@ -1054,7 +1042,7 @@ void FixPIMDLangevin::comm_init_multirank()
 
 void FixPIMDLangevin::reallocate()
 {
-  if (use_base_single_rank_comm()) {
+  if (comm->nprocs == 1) {
     FixPIMDNVE::reallocate();
   } else {
     reallocate_multirank();
@@ -1081,7 +1069,7 @@ void FixPIMDLangevin::reallocate_multirank()
 
 void FixPIMDLangevin::inter_replica_comm(double **ptr)
 {
-  if (use_base_single_rank_comm()) {
+  if (comm->nprocs == 1) {
     FixPIMDNVE::inter_replica_comm(ptr);
   } else {
     inter_replica_comm_multirank(ptr);
@@ -1092,7 +1080,7 @@ void FixPIMDLangevin::inter_replica_comm(double **ptr)
 
 double **FixPIMDLangevin::normal_mode_transform_buffer()
 {
-  if (use_base_single_rank_comm()) return bufsortedall;
+  if (comm->nprocs == 1) return bufsortedall;
   return multirank_bufbeads;
 }
 

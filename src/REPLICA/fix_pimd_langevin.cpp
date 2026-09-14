@@ -255,7 +255,10 @@ bool FixPIMDLangevin::parse_keyword(int narg, char **arg, int &i)
       thermostat = PILE_L;
       seed = utils::inumeric(FLERR, arg[i + 2], false, lmp);
       i++;
-    }
+    } else
+      error->universe_all(FLERR,
+                          fmt::format("Unknown thermostat parameter {} for fix {}; only PILE_L is supported",
+                                      arg[i + 1], style));
   } else if (strcmp(arg[i], "tau") == 0) {
     tau = utils::numeric(FLERR, arg[i + 1], false, lmp);
   } else if (strcmp(arg[i], "barostat") == 0) {

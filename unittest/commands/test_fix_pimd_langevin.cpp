@@ -439,7 +439,8 @@ TEST_F(FixPIMDLangevinSerialTest, InterleavedCommonAndLangevinKeywords)
 TEST_F(FixPIMDLangevinSerialTest, RejectsUnsupportedAndIncompleteKeywords)
 {
   for (const char *options : {"method cmd", "lj 1 1 1 1 1", "removecom yes",
-                              "temp", "tau", "thermostat PILE_L", "unknown 1"}) {
+                              "temp", "tau", "thermostat PILE_L", "thermostat NHC",
+                              "thermostat invalid", "unknown 1"}) {
     setup_single_atom_zero_pair([this](const std::string &line) { command(line); });
     // universe_all() tears down output state; isolate these errors in a child process.
     EXPECT_EXIT({

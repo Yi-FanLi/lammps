@@ -74,12 +74,8 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void reallocate_multirank();
 
   int maxsend;
-  int multirank_sizeplan;
-  int *multirank_plansend, *multirank_planrecv;
-  int *multirank_modeindex;
-  tagint *multirank_tagsend;
-  double *multirank_bufsend, *multirank_bufrecv;
-  double **multirank_bufbeads;
+  // Flat communication buffers; the base class uses two-dimensional buffers.
+  double *bufsend, *bufrecv;
 
   /* Langevin integration */
 

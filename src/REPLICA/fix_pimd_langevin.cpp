@@ -83,14 +83,8 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
     c1_k(nullptr), c2_k(nullptr), random(nullptr)
 {
   maxsend = 0;
-  multirank_sizeplan = 0;
-  multirank_plansend = nullptr;
-  multirank_planrecv = nullptr;
-  multirank_modeindex = nullptr;
-  multirank_tagsend = nullptr;
-  multirank_bufsend = nullptr;
-  multirank_bufrecv = nullptr;
-  multirank_bufbeads = nullptr;
+  bufsend = nullptr;
+  bufrecv = nullptr;
 
   ensemble = NVT;
   thermostat = PILE_L;
@@ -325,13 +319,8 @@ FixPIMDLangevin::~FixPIMDLangevin()
   delete[] tau_k;
   delete[] c1_k;
   delete[] c2_k;
-  delete[] multirank_plansend;
-  delete[] multirank_planrecv;
-  delete[] multirank_modeindex;
-  memory->destroy(multirank_bufsend);
-  memory->destroy(multirank_bufrecv);
-  memory->destroy(multirank_tagsend);
-  memory->destroy(multirank_bufbeads);
+  memory->destroy(bufsend);
+  memory->destroy(bufrecv);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -418,7 +407,7 @@ void FixPIMDLangevin::setup(int vflag)
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
     else
-      nmpimd_transform(multirank_bufbeads, atom->x, M_x2xp[universe->iworld]);
+      nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
   } else if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
     prepare_coordinates();
@@ -442,7 +431,7 @@ void FixPIMDLangevin::setup(int vflag)
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, atom->x, M_xp2x[universe->iworld]);
     else
-      nmpimd_transform(multirank_bufbeads, atom->x, M_xp2x[universe->iworld]);
+      nmpimd_transform(bufbeads, atom->x, M_xp2x[universe->iworld]);
   }
   remap_coordinates(atom->x, atom->image);
 
@@ -473,7 +462,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       if (cmode == SINGLE_PROC)
         nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
       else
-        nmpimd_transform(multirank_bufbeads, atom->x, M_x2xp[universe->iworld]);
+        nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
       qc_step();
       a_step();
       qc_step();
@@ -502,7 +491,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       if (cmode == SINGLE_PROC)
         nmpimd_transform(bufsortedall, atom->x, M_x2xp[universe->iworld]);
       else
-        nmpimd_transform(multirank_bufbeads, atom->x, M_x2xp[universe->iworld]);
+        nmpimd_transform(bufbeads, atom->x, M_x2xp[universe->iworld]);
       qc_step();
       a_step();
     } else if (method == PIMD) {
@@ -546,7 +535,7 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, atom->x, M_xp2x[universe->iworld]);
     else
-      nmpimd_transform(multirank_bufbeads, atom->x, M_xp2x[universe->iworld]);
+      nmpimd_transform(bufbeads, atom->x, M_xp2x[universe->iworld]);
   }
   remap_coordinates(atom->x, atom->image);
 }
@@ -606,7 +595,7 @@ void FixPIMDLangevin::post_force(int /*flag*/)
     if (cmode == SINGLE_PROC)
       nmpimd_transform(bufsortedall, atom->f, M_x2xp[universe->iworld]);
     else
-      nmpimd_transform(multirank_bufbeads, atom->f, M_x2xp[universe->iworld]);
+      nmpimd_transform(bufbeads, atom->f, M_x2xp[universe->iworld]);
   }
 
   schedule_common_computes();
@@ -913,24 +902,24 @@ void FixPIMDLangevin::comm_init_multirank()
   if (np != universe->nworlds)
     error->all(FLERR, "Fix pimd/langevin: np must equal universe->nworlds");
 
-  if (multirank_sizeplan) {
-    delete[] multirank_plansend;
-    delete[] multirank_planrecv;
-    delete[] multirank_modeindex;
+  if (sizeplan) {
+    delete[] plansend;
+    delete[] planrecv;
+    delete[] modeindex;
   }
 
-  multirank_sizeplan = np - 1;
-  multirank_plansend = new int[multirank_sizeplan];
-  multirank_planrecv = new int[multirank_sizeplan];
-  multirank_modeindex = new int[multirank_sizeplan];
-  for (int i = 0; i < multirank_sizeplan; i++) {
-    multirank_plansend[i] = universe->me + comm->nprocs * (i + 1);
-    if (multirank_plansend[i] >= universe->nprocs) multirank_plansend[i] -= universe->nprocs;
+  sizeplan = np - 1;
+  plansend = new int[sizeplan];
+  planrecv = new int[sizeplan];
+  modeindex = new int[sizeplan];
+  for (int i = 0; i < sizeplan; i++) {
+    plansend[i] = universe->me + comm->nprocs * (i + 1);
+    if (plansend[i] >= universe->nprocs) plansend[i] -= universe->nprocs;
 
-    multirank_planrecv[i] = universe->me - comm->nprocs * (i + 1);
-    if (multirank_planrecv[i] < 0) multirank_planrecv[i] += universe->nprocs;
+    planrecv[i] = universe->me - comm->nprocs * (i + 1);
+    if (planrecv[i] < 0) planrecv[i] += universe->nprocs;
 
-    multirank_modeindex[i] = (universe->iworld + i + 1) % universe->nworlds;
+    modeindex[i] = (universe->iworld + i + 1) % universe->nworlds;
   }
 
   x_next = (universe->iworld + 1 + universe->nworlds) % universe->nworlds;
@@ -954,14 +943,14 @@ void FixPIMDLangevin::reallocate_multirank()
 {
   maxlocal = atom->nmax;
   ntotal = atom->natoms;
-  memory->destroy(multirank_bufsend);
-  memory->destroy(multirank_bufrecv);
-  memory->destroy(multirank_tagsend);
-  memory->destroy(multirank_bufbeads);
-  memory->create(multirank_bufsend, maxlocal * 3, "FixPIMDLangevin:multirank_bufsend");
-  memory->create(multirank_bufrecv, maxlocal * 3, "FixPIMDLangevin:multirank_bufrecv");
-  memory->create(multirank_tagsend, maxlocal, "FixPIMDLangevin:multirank_tagsend");
-  memory->create(multirank_bufbeads, nreplica, maxlocal * 3, "FixPIMDLangevin:multirank_bufbeads");
+  memory->destroy(bufsend);
+  memory->destroy(bufrecv);
+  memory->destroy(tagsend);
+  memory->destroy(bufbeads);
+  memory->create(bufsend, maxlocal * 3, "FixPIMDLangevin:bufsend");
+  memory->create(bufrecv, maxlocal * 3, "FixPIMDLangevin:bufrecv");
+  memory->create(tagsend, maxlocal, "FixPIMDLangevin:tagsend");
+  memory->create(bufbeads, nreplica, maxlocal * 3, "FixPIMDLangevin:bufbeads");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -980,7 +969,7 @@ void FixPIMDLangevin::inter_replica_comm(double **ptr)
 double **FixPIMDLangevin::normal_mode_transform_buffer()
 {
   if (comm->nprocs == 1) return bufsortedall;
-  return multirank_bufbeads;
+  return bufbeads;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -991,28 +980,28 @@ void FixPIMDLangevin::inter_replica_comm_multirank(double **ptr)
   int nlocal = atom->nlocal;
 
   for (int i = 0; i < nlocal; i++) {
-    multirank_bufbeads[ireplica][3 * i + 0] = ptr[i][0];
-    multirank_bufbeads[ireplica][3 * i + 1] = ptr[i][1];
-    multirank_bufbeads[ireplica][3 * i + 2] = ptr[i][2];
+    bufbeads[ireplica][3 * i + 0] = ptr[i][0];
+    bufbeads[ireplica][3 * i + 1] = ptr[i][1];
+    bufbeads[ireplica][3 * i + 2] = ptr[i][2];
   }
 
-  for (int iplan = 0; iplan < multirank_sizeplan; iplan++) {
+  for (int iplan = 0; iplan < sizeplan; iplan++) {
     int nsend = 0;
-    MPI_Sendrecv((void *) &nlocal, 1, MPI_INT, multirank_plansend[iplan], TAG_INTER_REPLICA_COUNT,
-                 (void *) &nsend, 1, MPI_INT, multirank_planrecv[iplan], TAG_INTER_REPLICA_COUNT,
+    MPI_Sendrecv((void *) &nlocal, 1, MPI_INT, plansend[iplan], TAG_INTER_REPLICA_COUNT,
+                 (void *) &nsend, 1, MPI_INT, planrecv[iplan], TAG_INTER_REPLICA_COUNT,
                  universe->uworld, MPI_STATUS_IGNORE);
 
     if (nsend > maxsend) {
       maxsend = nsend + 200;
-      multirank_tagsend = (tagint *) memory->srealloc(
-          multirank_tagsend, sizeof(tagint) * maxsend, "FixPIMDLangevin:multirank_tagsend");
-      multirank_bufsend = (double *) memory->srealloc(
-          multirank_bufsend, sizeof(double) * 3 * maxsend, "FixPIMDLangevin:multirank_bufsend");
+      tagsend = (tagint *) memory->srealloc(
+          tagsend, sizeof(tagint) * maxsend, "FixPIMDLangevin:tagsend");
+      bufsend = (double *) memory->srealloc(
+          bufsend, sizeof(double) * 3 * maxsend, "FixPIMDLangevin:bufsend");
     }
 
-    MPI_Sendrecv((void *) atom->tag, nlocal, MPI_LMP_TAGINT, multirank_plansend[iplan],
-                 TAG_INTER_REPLICA_TAGS, (void *) multirank_tagsend, nsend, MPI_LMP_TAGINT,
-                 multirank_planrecv[iplan], TAG_INTER_REPLICA_TAGS, universe->uworld,
+    MPI_Sendrecv((void *) atom->tag, nlocal, MPI_LMP_TAGINT, plansend[iplan],
+                 TAG_INTER_REPLICA_TAGS, (void *) tagsend, nsend, MPI_LMP_TAGINT,
+                 planrecv[iplan], TAG_INTER_REPLICA_TAGS, universe->uworld,
                  MPI_STATUS_IGNORE);
 
     std::vector<int> miss_idx;
@@ -1021,14 +1010,14 @@ void FixPIMDLangevin::inter_replica_comm_multirank(double **ptr)
     miss_tag.reserve(nsend);
 
     for (int i = 0; i < nsend; i++) {
-      const int idx = atom->map(multirank_tagsend[i]);
+      const int idx = atom->map(tagsend[i]);
       if (idx >= 0 && idx < nlocal) {
-        multirank_bufsend[3 * i + 0] = ptr[idx][0];
-        multirank_bufsend[3 * i + 1] = ptr[idx][1];
-        multirank_bufsend[3 * i + 2] = ptr[idx][2];
+        bufsend[3 * i + 0] = ptr[idx][0];
+        bufsend[3 * i + 1] = ptr[idx][1];
+        bufsend[3 * i + 2] = ptr[idx][2];
       } else {
         miss_idx.push_back(i);
-        miss_tag.push_back(multirank_tagsend[i]);
+        miss_tag.push_back(tagsend[i]);
       }
     }
 
@@ -1053,18 +1042,18 @@ void FixPIMDLangevin::inter_replica_comm_multirank(double **ptr)
         }
 
         const int i = miss_idx[k];
-        multirank_bufsend[3 * i + 0] = rep_val[3 * pos + 0];
-        multirank_bufsend[3 * i + 1] = rep_val[3 * pos + 1];
-        multirank_bufsend[3 * i + 2] = rep_val[3 * pos + 2];
+        bufsend[3 * i + 0] = rep_val[3 * pos + 0];
+        bufsend[3 * i + 1] = rep_val[3 * pos + 1];
+        bufsend[3 * i + 2] = rep_val[3 * pos + 2];
       }
     }
 
-    MPI_Sendrecv((void *) multirank_bufsend, 3 * nsend, MPI_DOUBLE, multirank_planrecv[iplan],
-                 TAG_INTER_REPLICA_VALS, (void *) multirank_bufrecv, 3 * nlocal, MPI_DOUBLE,
-                 multirank_plansend[iplan], TAG_INTER_REPLICA_VALS, universe->uworld,
+    MPI_Sendrecv((void *) bufsend, 3 * nsend, MPI_DOUBLE, planrecv[iplan],
+                 TAG_INTER_REPLICA_VALS, (void *) bufrecv, 3 * nlocal, MPI_DOUBLE,
+                 plansend[iplan], TAG_INTER_REPLICA_VALS, universe->uworld,
                  MPI_STATUS_IGNORE);
 
-    memcpy(multirank_bufbeads[multirank_modeindex[iplan]], multirank_bufrecv,
+    memcpy(bufbeads[modeindex[iplan]], bufrecv,
            sizeof(double) * 3 * nlocal);
   }
 }

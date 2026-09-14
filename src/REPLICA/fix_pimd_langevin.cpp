@@ -1556,13 +1556,6 @@ void FixPIMDLangevin::schedule_common_computes()
 
 /* ---------------------------------------------------------------------- */
 
-double FixPIMDLangevin::compute_vector(int n)
-{
-  return FixPIMDNVE::compute_vector(n);
-}
-
-/* ---------------------------------------------------------------------- */
-
 int FixPIMDLangevin::subclass_vector_size() const
 {
   if (!pstat_flag) return 0;

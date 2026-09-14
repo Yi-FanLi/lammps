@@ -45,7 +45,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void initial_integrate(int) override;
   void final_integrate() override;
   void end_of_step() override;
-  double compute_vector(int) override;
 
  protected:
   // System setting variables

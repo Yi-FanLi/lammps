@@ -587,11 +587,8 @@ void FixPIMDNVE::collect_xc()
 
 void FixPIMDNVE::b_step()
 {
-  apply_force_velocity_kick();
-}
-
-void FixPIMDNVE::apply_force_velocity_kick()
-{
+  // For NMPIMD, force only includes the contribution of external potential.
+  // For PIMD, force includes the contributions of external potential and spring force.
   int nlocal = atom->nlocal;
   int *mask = atom->mask;
   int *type = atom->type;

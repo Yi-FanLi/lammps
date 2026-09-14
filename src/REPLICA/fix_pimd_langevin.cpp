@@ -656,16 +656,6 @@ void FixPIMDLangevin::end_of_step()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::b_step()
-{
-  // used for both NMPIMD and PIMD
-  // For NMPIMD, force only includes the contribution of external potential.
-  // For PIMD, force includes the contributions of external potential and spring force.
-  apply_force_velocity_kick();
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::qc_step()
 {
   // used for NMPIMD

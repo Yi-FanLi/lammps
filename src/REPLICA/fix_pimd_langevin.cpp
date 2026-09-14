@@ -130,13 +130,7 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   kt = force->boltz * temp;
   if (pstat_flag) FixPIMDLangevin::baro_init();
 
-  // some initilizations
-
-  id_pe = utils::strdup(std::string(id) + "_pimd_pe");
-  modify->add_compute(std::string(id_pe) + " all pe");
-
-  id_press = utils::strdup(std::string(id) + "_pimd_press");
-  modify->add_compute(std::string(id_press) + " all pressure thermo_temp virial");
+  finish_constructor_setup();
 
   vol0 = domain->xprd * domain->yprd * domain->zprd;
 
@@ -153,40 +147,6 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
       random = new RanMars(lmp, seed + universe->me);
     }
   }
-
-  me = comm->me;
-  nprocs = comm->nprocs;
-  if (nprocs == 1)
-    cmode = SINGLE_PROC;
-  else
-    cmode = MULTI_PROC;
-
-  nprocs_universe = universe->nprocs;
-  nreplica = universe->nworlds;
-  ireplica = universe->iworld;
-
-  if (nreplica == 1)
-    mapflag = 0;
-  else
-    mapflag = 1;
-
-  int *iroots = new int[nreplica];
-  MPI_Group uworldgroup, rootgroup;
-
-  for (int i = 0; i < nreplica; i++) iroots[i] = universe->root_proc[i];
-  MPI_Comm_group(universe->uworld, &uworldgroup);
-  MPI_Group_incl(uworldgroup, nreplica, iroots, &rootgroup);
-  MPI_Comm_create(universe->uworld, rootgroup, &rootworld);
-  if (rootgroup != MPI_GROUP_NULL) MPI_Group_free(&rootgroup);
-  if (uworldgroup != MPI_GROUP_NULL) MPI_Group_free(&uworldgroup);
-  delete[] iroots;
-
-  ntotal = atom->natoms;
-  if (atom->nmax > maxlocal) reallocate();
-  if (atom->nmax > maxunwrap) reallocate_x_unwrap();
-  if (atom->nmax > maxxc) reallocate_xc();
-  if (xcall == nullptr) memory->create(xcall, ntotal * 3, "FixPIMDLangevin:xcall");
-
 }
 
 /* ---------------------------------------------------------------------- */
@@ -316,112 +276,9 @@ FixPIMDLangevin::~FixPIMDLangevin()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::init()
+void FixPIMDLangevin::setup_subclass_state()
 {
-  if (atom->map_style == Atom::MAP_NONE)
-    error->all(FLERR, fmt::format("Fix {} requires an atom map, see atom_modify", style));
-  if (atom->tag_consecutive() == 0)
-    error->all(FLERR, "Atom IDs must be consecutive for fix {}", style);
-
-  if (universe->me == 0 && universe->uscreen)
-    utils::print(universe->uscreen, "Fix {}: initializing Path-Integral ...\n", style);
-
-  // prepare the constants
-
-  masstotal = group->mass(igroup);
-
-  double planck = sp * force->hplanck;
-  hbar = planck / MY_2PI;
-  beta = 1.0 / (force->boltz * temp);
-  double _fbond = 1.0 * np * np / (beta * beta * hbar * hbar);
-
-  omega_np = np / (hbar * beta) * sqrt(force->mvv2e);
-  beta_np = 1.0 / force->boltz / temp * inverse_np;
-  fbond = _fbond * force->mvv2e;
-
-  if ((universe->me == 0) && (universe->uscreen))
-    utils::print(universe->uscreen, "Fix {}: -P/(beta^2 * hbar^2) = {:20.7e} (kcal/mol/A^2)\n\n",
-                 style, fbond);
-
-  if (integrator != OBABO && integrator != BAOAB)
-    error->universe_all(FLERR, fmt::format("Unknown integrator parameter for fix {}", style));
-
-  dtf = 0.5 * update->dt * force->ftm2v;
-  dtv = 0.5 * update->dt;
-  dtv2 = dtv * dtv;
-  dtv3 = THIRD * dtv2 * dtv * force->ftm2v;
-
-  comm_init();
-
-  if (mass == nullptr) mass = new double[atom->ntypes + 1];
-
-  nmpimd_init();
-
-  if (xcall == nullptr) memory->create(xcall, ntotal * 3, "FixPIMDLangevin:xcall");
-
   langevin_init();
-
-  c_pe = modify->get_compute_by_id(id_pe);
-  if (!c_pe) {
-    error->universe_all(
-        FLERR,
-        fmt::format("Potential energy compute ID {} for fix {} does not exist", id_pe, style));
-  } else {
-    if (c_pe->peflag == 0)
-      error->universe_all(
-          FLERR,
-          fmt::format("Compute ID {} for fix {} does not compute potential energy", id_pe, style));
-  }
-
-  c_press = modify->get_compute_by_id(id_press);
-  if (!c_press) {
-    error->universe_all(
-        FLERR, fmt::format("Could not find fix {} pressure compute ID {}", style, id_press));
-  } else {
-    if (c_press->pressflag == 0)
-      error->universe_all(
-          FLERR,
-          fmt::format("Compute ID {} for fix {} does not compute pressure", id_press, style));
-  }
-
-  t_prim = t_vir = t_cv = p_prim = p_cv = p_md = 0.0;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::setup(int vflag)
-{
-  if (method == NMPIMD) {
-    unmap_coordinates(atom->x, atom->image);
-    // Forward: bead coordinates to normal modes.
-    inter_replica_comm(atom->x);
-    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
-  } else if (method == PIMD) {
-    unmap_coordinates(atom->x, atom->image);
-    prepare_coordinates();
-    if (cmode == SINGLE_PROC)
-      spring_force();
-    else if (cmode == MULTI_PROC)
-      error->universe_all(FLERR, "Method pimd only supports a single processor per bead");
-  } else {
-    error->universe_all(
-        FLERR,
-        fmt::format("Unknown method parameter for fix {}. Only nmpimd and pimd are supported!",
-                    style));
-  }
-  collect_xc();
-  compute_spring_energy();
-  compute_t_prim();
-  compute_p_prim();
-  if (method == NMPIMD) {
-    // Backward: normal modes to bead coordinates.
-    inter_replica_comm(atom->x);
-    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
-  }
-  remap_coordinates(atom->x, atom->image);
-
-  post_force(vflag);
-  end_of_step();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -537,41 +394,6 @@ void FixPIMDLangevin::final_integrate()
   } else {
     error->universe_all(FLERR, fmt::format("Unknown integrator parameter for fix {}", style));
   }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::prepare_coordinates()
-{
-  inter_replica_comm(atom->x);
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::post_force(int /*flag*/)
-{
-  prepare_common_virial_state();
-  compute_vir();
-  compute_xf_vir();
-  compute_cvir();
-  compute_t_vir();
-
-  if (method == PIMD) {
-    unmap_coordinates(atom->x, atom->image);
-    prepare_coordinates();
-    spring_force();
-    compute_spring_energy();
-    compute_t_prim();
-    remap_coordinates(atom->x, atom->image);
-  }
-  compute_pote();
-  if (method == NMPIMD) {
-    // Forward: bead forces to normal-mode forces.
-    inter_replica_comm(atom->f);
-    nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
-  }
-
-  schedule_common_computes();
 }
 
 /* ---------------------------------------------------------------------- */

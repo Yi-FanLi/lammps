@@ -37,15 +37,13 @@ class FixPIMDLangevin : public FixPIMDNVE {
   enum { NVE, NVT, NPH, NPT };
   enum { SINGLE_PROC, MULTI_PROC };
 
-  void init() override;
-  void setup(int) override;
-  void post_force(int) override;
   void initial_integrate(int) override;
   void final_integrate() override;
   void end_of_step() override;
 
  protected:
   bool parse_keyword(int, char **, int &) override;
+  void setup_subclass_state() override;
   int seed;
 
   // System setting variables
@@ -54,10 +52,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   int ensemble;            // nve or nvt or nph or npt
 
   double fixedpoint[3];    // location of dilation fixed-point
-
-  // Inter-bead communication
-
-  virtual void prepare_coordinates();
 
   /* Langevin integration */
 

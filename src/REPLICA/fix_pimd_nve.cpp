@@ -349,8 +349,13 @@ void FixPIMDNVE::init()
     error->universe_all(
         FLERR, fmt::format("Could not find fix {} pressure compute ID {}", style, id_press));
 
+  if (!c_pe->peflag)
+    error->all(FLERR, "Compute ID {} for fix {} does not compute potential energy", id_pe, style);
+  if (!c_press->pressflag)
+    error->all(FLERR, "Compute ID {} for fix {} does not compute pressure", id_press, style);
+
   setup_subclass_state();
-  t_prim = t_vir = t_cv = p_cv = p_md = 0.0;
+  t_prim = t_vir = t_cv = p_prim = p_cv = p_md = 0.0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -364,7 +369,7 @@ void FixPIMDNVE::setup(int vflag)
     nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
   } else if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
-    inter_replica_comm(atom->x);
+    prepare_coordinates();
     spring_force();
   } else {
     error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
@@ -427,6 +432,13 @@ void FixPIMDNVE::final_integrate()
 
 /* ---------------------------------------------------------------------- */
 
+void FixPIMDNVE::prepare_coordinates()
+{
+  inter_replica_comm(atom->x);
+}
+
+/* ---------------------------------------------------------------------- */
+
 void FixPIMDNVE::post_force(int /*flag*/)
 {
   prepare_common_virial_state();
@@ -437,7 +449,7 @@ void FixPIMDNVE::post_force(int /*flag*/)
 
   if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
-    inter_replica_comm(atom->x);
+    prepare_coordinates();
     spring_force();
     compute_spring_energy();
     compute_t_prim();

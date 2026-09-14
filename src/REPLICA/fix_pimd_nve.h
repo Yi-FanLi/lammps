@@ -105,6 +105,7 @@ class FixPIMDNVE : public Fix {
 
   void comm_init();
   void inter_replica_comm(double **);
+  virtual void prepare_coordinates();
   void ring_collect(const std::vector<tagint> &, double **,
                     std::vector<tagint> &, std::vector<double> &);
   void reallocate();

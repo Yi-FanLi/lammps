@@ -758,28 +758,6 @@ void FixPIMDLangevin::qc_step()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::q_step()
-{
-  // used for PIMD
-  // evolve all beads
-  int nlocal = atom->nlocal;
-  int *mask = atom->mask;
-  double **x = atom->x;
-  double **v = atom->v;
-
-  if (!pstat_flag) {
-    for (int i = 0; i < nlocal; i++) {
-      if (mask[i] & groupbit) {
-        x[i][0] += dtv * v[i][0];
-        x[i][1] += dtv * v[i][1];
-        x[i][2] += dtv * v[i][2];
-      }
-    }
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::baro_init()
 {
   vw[0] = vw[1] = vw[2] = vw[3] = vw[4] = vw[5] = 0.0;

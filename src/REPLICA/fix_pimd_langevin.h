@@ -107,7 +107,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void langevin_init();
   void qc_step() override;    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
   void o_step();     // integrate for dt according to O part (O-U process, for thermostating)
-  void q_step();     // integrate for dt/2 for all the beads (x <- x + v * dt/2)
 
   /* Bussi-Zykova-Parrinello barostat */
 

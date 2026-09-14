@@ -1396,15 +1396,6 @@ void FixPIMDLangevin::compute_stress_tensor()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::compute_totke()
-{
-  totke = ke_bead = 0.0;
-  double kine = local_kinetic_energy_sum(true);
-  reduce_bead_and_total(kine, ke_bead, totke);
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::compute_spring_energy()
 {
   if (method == NMPIMD) {

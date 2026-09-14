@@ -1050,7 +1050,7 @@ void FixPIMDNVE::compute_vir()
 void FixPIMDNVE::compute_totke()
 {
   totke = ke_bead = 0.0;
-  double kine = local_kinetic_energy_sum(false);
+  double kine = local_kinetic_energy_sum(true);
   reduce_bead_and_total(kine, ke_bead, totke);
 }
 

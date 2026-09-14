@@ -135,7 +135,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   class Compute *c_pe;
   class Compute *c_press;
 
-  void compute_totke();                    // 1: kinetic energy
   virtual void compute_spring_energy();    // 2: spring elastic energy
   void compute_pote();                     // 3: potential energy
   void compute_tote();                     // 4: total energy: 1+2+3 for all the beads

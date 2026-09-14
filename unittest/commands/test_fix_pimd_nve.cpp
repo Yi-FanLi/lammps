@@ -92,7 +92,14 @@ TEST_F(FixPIMDNVESerialTest, DoesNotMoveAtomsOutsideFixGroup)
   ASSERT_TRUE(found);
 
   command("fix cp mobile pimd/nve temp 1.0");
+  command("run 0 post no");
+  // Only the mobile atom contributes, even though the other atom has velocity.
+  const double mobile_ke = 0.5 * (0.2 * 0.2 + 0.1 * 0.1 + 0.05 * 0.05);
+  EXPECT_NEAR(fix_value("cp", 0), mobile_ke, 1.0e-12);
+  EXPECT_NEAR(fix_value("cp", 3), mobile_ke, 1.0e-12);
   command("run 10 post no");
+  EXPECT_NEAR(fix_value("cp", 0), mobile_ke, 1.0e-12);
+  EXPECT_NEAR(fix_value("cp", 3), mobile_ke, 1.0e-12);
 
   found = false;
   for (int i = 0; i < atom->nlocal; ++i) {
@@ -105,6 +112,12 @@ TEST_F(FixPIMDNVESerialTest, DoesNotMoveAtomsOutsideFixGroup)
     }
   }
   ASSERT_TRUE(found);
+
+  command("unfix cp");
+  command("fix cp all pimd/nve temp 1.0");
+  command("run 0 post no");
+  EXPECT_NEAR(fix_value("cp", 0), 2.0 * mobile_ke, 1.0e-12);
+  EXPECT_NEAR(fix_value("cp", 3), 2.0 * mobile_ke, 1.0e-12);
 }
 
 TEST_F(FixPIMDNVESerialTest, P1StandaloneRunProducesFiniteVector)

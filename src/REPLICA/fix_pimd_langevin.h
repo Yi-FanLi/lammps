@@ -37,7 +37,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   enum { NVE, NVT, NPH, NPT };
   enum { SINGLE_PROC, MULTI_PROC };
 
-  int setmask() override;
 
   void init() override;
   void setup(int) override;
@@ -59,11 +58,7 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   double fixedpoint[3];    // location of dilation fixed-point
 
-  // ring-polymer model
-
-  double spring_energy;
-
-  // fictitious mass
+  // Inter-bead communication
 
   void comm_init();
   void comm_init_multirank();
@@ -75,7 +70,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
                                             double **ptr,
                                             std::vector<tagint> &rep_tag,
                                             std::vector<double> &rep_val);
-  void spring_force() override;
 
   /* normal-mode operations */
 
@@ -126,29 +120,12 @@ class FixPIMDLangevin : public FixPIMDNVE {
   /* centroid-virial estimator computation */
   double vol0 = 0.0;
   void remove_com_motion();
-  double vir, vir_, centroid_vir;
   double p_vir;
 
-  /* Computes */
-  char *id_pe;
-  char *id_press;
-  class Compute *c_pe;
-  class Compute *c_press;
-
-  virtual void compute_spring_energy();    // 2: spring elastic energy
-  void compute_pote();                     // 3: potential energy
-  void compute_tote();                     // 4: total energy: 1+2+3 for all the beads
+  /* Langevin-specific estimators */
   void compute_stress_tensor();
-  virtual void compute_t_prim();
-  void compute_t_vir();
-  void compute_t_cv();
-  void compute_p_prim();
-  void compute_p_cv();    // centroid-virial pressure estimator
-  void compute_vir();
-  void compute_xf_vir();
-  void compute_cvir();
+  void compute_cvir() override;
   void compute_totenthalpy();
-  void schedule_common_computes();
   int subclass_vector_size() const override;
   double compute_subclass_vector(int) const override;
   int base_restart_size() const override;

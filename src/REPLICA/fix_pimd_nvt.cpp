@@ -609,7 +609,7 @@ void FixPIMDNVT::nh_v_temp()
 
 double FixPIMDNVT::thermostat_work_delta(double scale_factor) const
 {
-  const double kinetic_before_local = local_kinetic_energy_sum(true);
+  const double kinetic_before_local = local_kinetic_energy_sum();
   const double kinetic_after_local = kinetic_before_local * scale_factor * scale_factor;
   double work_delta_local = kinetic_before_local - kinetic_after_local;
   double work_delta = 0.0;

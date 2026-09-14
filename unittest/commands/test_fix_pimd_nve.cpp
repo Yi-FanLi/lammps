@@ -16,6 +16,11 @@
 #include "../testing/core.h"
 #include "gtest/gtest.h"
 #include "pimd_test_utils.h"
+#include "modify.h"
+
+#define protected public
+#include "../../src/REPLICA/fix_pimd_nve.h"
+#undef protected
 
 #include <cmath>
 #include <mpi.h>
@@ -118,6 +123,46 @@ TEST_F(FixPIMDNVESerialTest, DoesNotMoveAtomsOutsideFixGroup)
   command("run 0 post no");
   EXPECT_NEAR(fix_value("cp", 0), 2.0 * mobile_ke, 1.0e-12);
   EXPECT_NEAR(fix_value("cp", 3), 2.0 * mobile_ke, 1.0e-12);
+}
+
+TEST_F(FixPIMDNVESerialTest, GroupRestrictedSpringAndVirialEstimators)
+{
+  setup_zero_pair_system();
+  command("group mobile id 1");
+  command("fix cp mobile pimd/nve temp 1.0");
+  command("run 0 post no");
+  auto *fix = dynamic_cast<FixPIMDNVE *>(lmp->modify->get_fix_by_id("cp"));
+  ASSERT_NE(fix, nullptr);
+
+  // Exercise a nonzero mode's estimator algebra without requiring MPI partitions.
+  // Every atom outside the group has a much larger position and force.
+  fix->lam[0] = 2.0;
+  fix->fbond = 1.0;
+  for (int i = 0; i < lmp->atom->nlocal; ++i) {
+    const bool mobile = lmp->atom->tag[i] == 1;
+    for (int d = 0; d < 3; ++d) {
+      lmp->atom->x[i][d] = mobile ? 1.0 : 10.0;
+      fix->x_unwrap[i][d] = lmp->atom->x[i][d];
+      fix->xc[i][d] = fix->x_unwrap[i][d] - 0.5;
+      lmp->atom->f[i][d] = (mobile ? 1.0 : 10.0) * (d + 1);
+    }
+  }
+  fix->compute_spring_energy();
+  fix->compute_xf_vir();
+  fix->compute_cvir();
+  fix->compute_t_prim();
+  fix->compute_t_vir();
+  fix->compute_p_prim();
+
+  EXPECT_NEAR(fix->se_bead, 3.0, 1.0e-12);
+  EXPECT_NEAR(fix->total_spring_energy, 3.0, 1.0e-12);
+  EXPECT_NEAR(fix->vir_, 6.0, 1.0e-12);
+  EXPECT_NEAR(fix->centroid_vir, 3.0, 1.0e-12);
+  EXPECT_NEAR(fix->t_prim, -1.5, 1.0e-12);
+  EXPECT_NEAR(fix->t_vir, -3.0, 1.0e-12);
+  EXPECT_NEAR(fix->t_cv, 0.0, 1.0e-12);
+  // The cubic lattice contains eight atoms at number density 0.7.
+  EXPECT_NEAR(fix->p_prim, -0.7 / 8.0, 1.0e-12);
 }
 
 TEST_F(FixPIMDNVESerialTest, P1StandaloneRunProducesFiniteVector)

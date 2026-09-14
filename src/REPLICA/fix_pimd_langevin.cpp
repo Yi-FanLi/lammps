@@ -80,8 +80,7 @@ constexpr int TAG_RING_REP_VALS   = 404;
 
 FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
     FixPIMDNVE(lmp, narg, arg, true), M_f2fp(nullptr), M_fp2f(nullptr), tau_k(nullptr),
-    c1_k(nullptr), c2_k(nullptr), random(nullptr), id_pe(nullptr), id_press(nullptr),
-    c_pe(nullptr), c_press(nullptr)
+    c1_k(nullptr), c2_k(nullptr), random(nullptr)
 {
   restart_global = 1;
   time_integrate = 1;
@@ -355,10 +354,6 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
 
 FixPIMDLangevin::~FixPIMDLangevin()
 {
-  modify->delete_compute(id_pe);
-  modify->delete_compute(id_press);
-  delete[] id_pe;
-  delete[] id_press;
   delete random;
   delete[] tau_k;
   delete[] c1_k;
@@ -370,18 +365,6 @@ FixPIMDLangevin::~FixPIMDLangevin()
   memory->destroy(multirank_bufrecv);
   memory->destroy(multirank_tagsend);
   memory->destroy(multirank_bufbeads);
-}
-
-/* ---------------------------------------------------------------------- */
-
-int FixPIMDLangevin::setmask()
-{
-  int mask = 0;
-  mask |= POST_FORCE;
-  mask |= INITIAL_INTEGRATE;
-  mask |= FINAL_INTEGRATE;
-  mask |= END_OF_STEP;
-  return mask;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -955,49 +938,6 @@ void FixPIMDLangevin::o_step()
    Normal Mode PIMD
    ------------------------------------------------------------------------- */
 
-void FixPIMDLangevin::spring_force()
-{
-  spring_energy = 0.0;
-
-  double **x = atom->x;
-  double **f = atom->f;
-  double *_mass = atom->mass;
-  int *type = atom->type;
-  int nlocal = atom->nlocal;
-  tagint *tagtmp = atom->tag;
-
-  int *mask = atom->mask;
-
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit) {
-      double delx1 = bufsortedall[x_last * nlocal + tagtmp[i] - 1][0] - x[i][0];
-      double dely1 = bufsortedall[x_last * nlocal + tagtmp[i] - 1][1] - x[i][1];
-      double delz1 = bufsortedall[x_last * nlocal + tagtmp[i] - 1][2] - x[i][2];
-
-      double delx2 = bufsortedall[x_next * nlocal + tagtmp[i] - 1][0] - x[i][0];
-      double dely2 = bufsortedall[x_next * nlocal + tagtmp[i] - 1][1] - x[i][1];
-      double delz2 = bufsortedall[x_next * nlocal + tagtmp[i] - 1][2] - x[i][2];
-
-      double ff = fbond * _mass[type[i]];
-      // double ff = 0;
-
-      double dx = delx1 + delx2;
-      double dy = dely1 + dely2;
-      double dz = delz1 + delz2;
-
-      f[i][0] += dx*ff;
-      f[i][1] += dy*ff;
-      f[i][2] += dz*ff;
-
-      spring_energy += 0.5 * ff * (delx2 * delx2 + dely2 * dely2 + delz2 * delz2);
-    }
-  }
-}
-
-/* ----------------------------------------------------------------------
-   Comm operations
-   ------------------------------------------------------------------------- */
-
 void FixPIMDLangevin::comm_init()
 {
   if (comm->nprocs == 1) {
@@ -1315,22 +1255,11 @@ void FixPIMDLangevin::remove_com_motion()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::compute_xf_vir()
-{
-  vir_ = 0.0;
-  double xf = local_xf_virial_sum(true);
-  MPI_Allreduce(&xf, &vir_, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::compute_cvir()
 {
-  centroid_vir = 0.0;
+  FixPIMDNVE::compute_cvir();
   int nlocal = atom->nlocal;
   int *mask = atom->mask;
-  double xcf = local_centroid_virial_sum(true);
-  MPI_Allreduce(&xcf, &centroid_vir, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
   if (pstyle == ANISO) {
     for (int i = 0; i < 6; i++) c_vir_tensor[i] = 0.0;
     for (int i = 0; i < nlocal; i++) {
@@ -1345,24 +1274,6 @@ void FixPIMDLangevin::compute_cvir()
     }
     MPI_Allreduce(MPI_IN_PLACE, &c_vir_tensor, 6, MPI_DOUBLE, MPI_SUM, universe->uworld);
   }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_vir()
-{
-  double volume = domain->xprd * domain->yprd * domain->zprd;
-  c_press->compute_vector();
-  virial[0] = c_press->vector[0] * volume;
-  virial[1] = c_press->vector[1] * volume;
-  virial[2] = c_press->vector[2] * volume;
-  virial[3] = c_press->vector[3] * volume;
-  virial[4] = c_press->vector[4] * volume;
-  virial[5] = c_press->vector[5] * volume;
-  for (int i = 0; i < 6; i++) virial[i] /= universe->procs_per_world[universe->iworld];
-  double vir_bead = (virial[0] + virial[1] + virial[2]);
-  MPI_Allreduce(&vir_bead, &vir, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
-  MPI_Allreduce(MPI_IN_PLACE, &virial[0], 6, MPI_DOUBLE, MPI_SUM, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1396,91 +1307,6 @@ void FixPIMDLangevin::compute_stress_tensor()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDLangevin::compute_spring_energy()
-{
-  if (method == NMPIMD) {
-    total_spring_energy = se_bead = 0.0;
-    spring_energy = local_normal_mode_spring_energy_sum(true);
-    reduce_bead_and_total(spring_energy, se_bead, total_spring_energy);
-  } else if (method == PIMD) {
-    total_spring_energy = se_bead = 0.0;
-    reduce_bead_and_total(spring_energy, se_bead, total_spring_energy);
-  } else {
-    error->universe_all(
-        FLERR,
-        fmt::format("Unknown method parameter for fix {}. Only nmpimd and pimd are supported!",
-                    style));
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_pote()
-{
-  pe_bead = 0.0;
-  pote = 0.0;
-  c_pe->compute_scalar();
-  pe_bead = c_pe->scalar;
-  double pot_energy_partition = pe_bead / universe->procs_per_world[universe->iworld];
-  pote = reduce_partition_scalar(pot_energy_partition);
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_tote()
-{
-  tote = totke + pote + total_spring_energy;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_t_prim()
-{
-  t_prim = 1.5 * estimator_atom_count(true) * np * force->boltz * temp -
-      total_spring_energy * inverse_np;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_t_vir()
-{
-  t_vir = -0.5 * inverse_np * vir_;
-  t_cv = 1.5 * estimator_atom_count(true) * force->boltz * temp - 0.5 * inverse_np * centroid_vir;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_p_prim()
-{
-  double inv_volume = 1.0 / (domain->xprd * domain->yprd * domain->zprd);
-  p_prim = estimator_atom_count(true) * np * force->boltz * temp * inv_volume -
-      1.0 / 1.5 * inv_volume * total_spring_energy;
-  p_prim *= force->nktv2p;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDLangevin::compute_p_cv()
-{
-  double inv_volume = 1.0 / (domain->xprd * domain->yprd * domain->zprd);
-  p_md = THIRD * inv_volume * (totke + vir);
-  if (method == NMPIMD) {
-    if (universe->iworld == 0) {
-      p_cv = THIRD * inv_volume * ((2.0 * ke_bead - centroid_vir) * force->nktv2p + vir) / np;
-    }
-    MPI_Bcast(&p_cv, 1, MPI_DOUBLE, 0, universe->uworld);
-  } else if (method == PIMD) {
-    p_cv = THIRD * inv_volume * ((2.0 * totke / np - centroid_vir) * force->nktv2p + vir) / np;
-  } else {
-    error->universe_all(
-        FLERR,
-        fmt::format("Unknown method parameter for fix {}. Only nmpimd and pimd are supported!",
-                    style));
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::compute_totenthalpy()
 {
   double volume = domain->xprd * domain->yprd * domain->zprd;
@@ -1496,14 +1322,6 @@ void FixPIMDLangevin::compute_totenthalpy()
   } else if (barostat == MTTK)
     totenthalpy = tote + 1.5 * W * vw[0] * vw[0] * inverse_np + p_hydro * (volume - vol0);
 }
-
-void FixPIMDLangevin::schedule_common_computes()
-{
-  c_pe->addstep(update->ntimestep + 1);
-  c_press->addstep(update->ntimestep + 1);
-}
-
-/* ---------------------------------------------------------------------- */
 
 int FixPIMDLangevin::subclass_vector_size() const
 {

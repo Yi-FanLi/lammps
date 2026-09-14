@@ -63,7 +63,6 @@ class FixPIMDNVT : public FixPIMDNVE {
   int tstat_flag;
 
   void nhc_init();
-  void o_step();
   void nhc_temp_integrate();
   double compute_nuclear_kinetic_energy() const;
   double chain_target_energy() const;

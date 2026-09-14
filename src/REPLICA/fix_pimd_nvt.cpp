@@ -375,27 +375,11 @@ void FixPIMDNVT::nhc_init()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDNVT::o_step()
-{
-  if (tstat_flag) nhc_temp_integrate();
-}
-
-/* ---------------------------------------------------------------------- */
-
 double FixPIMDNVT::compute_nuclear_kinetic_energy() const
 {
-  int *mask = atom->mask;
-  int *type = atom->type;
-  double **v = atom->v;
-  int nlocal = atom->nlocal;
-  double kecurrent = 0.0;
-
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit)
-      kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-  }
+  // The thermostat equations use twice the kinetic energy.
+  double kecurrent = 2.0 * local_kinetic_energy_sum();
   double ketotal = 0.0;
-  kecurrent *= force->mvv2e;
   MPI_Allreduce(&kecurrent, &ketotal, 1, MPI_DOUBLE, MPI_SUM, world);
   return ketotal;
 }
@@ -545,7 +529,7 @@ void FixPIMDNVT::nhc_temp_integrate()
 void FixPIMDNVT::thermostat_step()
 {
   if (tstat_flag) {
-    o_step();
+    nhc_temp_integrate();
     if (removecomflag) remove_com_motion();
   }
 }

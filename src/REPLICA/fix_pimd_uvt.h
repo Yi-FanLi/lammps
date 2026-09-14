@@ -69,7 +69,7 @@ class FixPIMDUVT : public FixPIMDNVT {
   double *Ne_dot;
   double *Ne_mass;
   double u_start, u_stop;
-  double u_current, u_target;
+  double u_target;
   double u_freq;
   double u_period;
   double ne_ecouple_work;

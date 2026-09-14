@@ -34,7 +34,7 @@ using namespace LAMMPS_NS;
 
 FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
     FixPIMDNVT(lmp, narg, arg, true), ustat_flag(1), mu_flag(0), mu(-3.5), Ne(nullptr),
-    Ne_dot(nullptr), Ne_mass(nullptr), u_start(0.0), u_stop(0.0), u_current(0.0),
+    Ne_dot(nullptr), Ne_mass(nullptr), u_start(0.0), u_stop(0.0),
     u_target(0.0), u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
     dedn_which(ArgInfo::NONE), dedn_index(0), dedn_var(-1), dedn_compute(nullptr),
     dedn_fix(nullptr), dedn_current(0.0)
@@ -71,7 +71,6 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
   for (int i = old_size; i < size_vector; i++) extlist[i] = 0;
 
   u_freq = 1.0 / u_period;
-  u_current = u_start;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -411,7 +410,6 @@ void FixPIMDUVT::refresh_dedn_cache()
   double dedn_avg = 0.0;
   MPI_Allreduce(&dedn_local, &dedn_avg, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
   dedn_current = dedn_avg * inverse_np;
-  u_current = dedn_current;
 }
 
 /* ---------------------------------------------------------------------- */

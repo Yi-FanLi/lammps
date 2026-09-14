@@ -113,7 +113,9 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
     p_target[i] = 0.0;
   }
 
-  for (int i = 3; i < narg - 1; i += 2) {
+  for (int i = 3; i < narg;) {
+    if (i + 2 > narg)
+      utils::missing_cmd_args(FLERR, fmt::format("fix {} {}", style, arg[i]), error);
     if (strcmp(arg[i], "method") == 0) {
       if (strcmp(arg[i + 1], "nmpimd") == 0)
         method = NMPIMD;
@@ -121,16 +123,6 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
         method = PIMD;
       else
         error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
-    } else if (strcmp(arg[i], "integrator") == 0) {
-      if (strcmp(arg[i + 1], "obabo") == 0)
-        integrator = OBABO;
-      else if (strcmp(arg[i + 1], "baoab") == 0)
-        integrator = BAOAB;
-      else
-        error->universe_all(FLERR,
-                            fmt::format("Unknown integrator parameter for fix {}. Only obabo and "
-                                        "baoab integrators are supported!",
-                                        style));
     } else if (strcmp(arg[i], "ensemble") == 0) {
       if (strcmp(arg[i + 1], "nve") == 0) {
         ensemble = NVE;
@@ -153,23 +145,6 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
                             fmt::format("Unknown ensemble parameter for fix {}. Only nve, nvt, "
                                         "nph, and npt ensembles are supported!",
                                         style));
-    } else if (strcmp(arg[i], "fmass") == 0) {
-      fmass = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (fmass < 0.0 || fmass > np)
-        error->universe_all(FLERR, fmt::format("Invalid fmass value for fix {}", style));
-    } else if (strcmp(arg[i], "sp") == 0) {
-      sp = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (sp < 0.0) error->universe_all(FLERR, fmt::format("Invalid sp value for fix {}", style));
-    } else if (strcmp(arg[i], "fmmode") == 0) {
-      if (strcmp(arg[i + 1], "physical") == 0)
-        fmmode = PHYSICAL;
-      else if (strcmp(arg[i + 1], "normal") == 0)
-        fmmode = NORMAL;
-      else
-        error->universe_all(FLERR,
-                            fmt::format("Unknown fictitious mass mode for fix {}. Only physical "
-                                        "mass and normal mode mass are supported!",
-                                        style));
     } else if (strcmp(arg[i], "scale") == 0) {
       if (method == PIMD)
         error->universe_all(
@@ -179,12 +154,10 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
       pilescale = utils::numeric(FLERR, arg[i + 1], false, lmp);
       if (pilescale < 0.0)
         error->universe_all(FLERR, fmt::format("Invalid PILE_L scale value for fix {}", style));
-    } else if (strcmp(arg[i], "temp") == 0) {
-      temp = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (temp < 0.0)
-        error->universe_all(FLERR, fmt::format("Invalid temp value for fix {}", style));
     } else if (strcmp(arg[i], "thermostat") == 0) {
       if (strcmp(arg[i + 1], "PILE_L") == 0) {
+        if (i + 3 > narg)
+          utils::missing_cmd_args(FLERR, fmt::format("fix {} thermostat", style), error);
         thermostat = PILE_L;
         seed = utils::inumeric(FLERR, arg[i + 2], false, lmp);
         i++;
@@ -234,9 +207,15 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
         removecomflag = 1;
       else if (strcmp(arg[i + 1], "no") == 0)
         removecomflag = 0;
+    } else if (strcmp(arg[i], "lj") == 0 || strcmp(arg[i], "removecom") == 0) {
+      // These base options are not part of the Langevin command syntax.
+      error->universe_all(FLERR, fmt::format("Unknown keyword {} for fix {}", arg[i], style));
+    } else if (FixPIMDNVE::parse_keyword(narg, arg, i)) {
+      continue;
     } else if (strcmp(arg[i], "") != 0) {
       error->universe_all(FLERR, fmt::format("Unknown keyword {} for fix {}", arg[i], style));
     }
+    i += 2;
   }
 
   if (pstat_flag && !pdim)

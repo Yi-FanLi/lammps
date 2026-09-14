@@ -70,7 +70,7 @@ class FixPIMDNVT : public FixPIMDNVE {
   virtual bool thermostat_chain_active() const;
   void update_chain0_acceleration(double);
   void propagate_chain_tail_halfstep(double);
-  double propagate_chain0_halfstep(double, bool);
+  double propagate_chain0_halfstep(double);
   void update_scaled_nuclear_kinetic(double &, double &) const;
   void advance_chain_positions(double);
   void complete_chain0_halfstep(double, double);

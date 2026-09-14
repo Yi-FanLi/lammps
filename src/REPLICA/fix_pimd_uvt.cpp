@@ -341,7 +341,7 @@ void FixPIMDUVT::nhc_mu_integrate()
     double expfac = 1.0;
     if (active) {
       propagate_chain_tail_halfstep(ncfac);
-      expfac = propagate_chain0_halfstep(ncfac, true);
+      expfac = propagate_chain0_halfstep(ncfac);
     }
 
     double eta_dot_k = eta_dot[0];

@@ -443,7 +443,7 @@ void FixPIMDNVT::propagate_chain_tail_halfstep(double ncfac)
 
 /* ---------------------------------------------------------------------- */
 
-double FixPIMDNVT::propagate_chain0_halfstep(double ncfac, bool apply_velocity_scaling)
+double FixPIMDNVT::propagate_chain0_halfstep(double ncfac)
 {
   double expfac = exp(-ncfac * dt8 * eta_dot[1]);
   eta_dot[0] *= expfac;
@@ -452,7 +452,7 @@ double FixPIMDNVT::propagate_chain0_halfstep(double ncfac, bool apply_velocity_s
   eta_dot[0] *= expfac;
 
   factor_eta = exp(-ncfac * dthalf * eta_dot[0]);
-  if (apply_velocity_scaling) nh_v_temp();
+  nh_v_temp();
   return expfac;
 }
 
@@ -526,7 +526,7 @@ void FixPIMDNVT::nhc_temp_integrate()
   const double chain_target = chain_target_energy();
   for (int iloop = 0; iloop < nc_tchain; iloop++) {
     propagate_chain_tail_halfstep(ncfac);
-    double expfac = propagate_chain0_halfstep(ncfac, true);
+    double expfac = propagate_chain0_halfstep(ncfac);
 
     update_scaled_nuclear_kinetic(t_current, kecurrent);
     if (eta_mass[0] > 0.0)

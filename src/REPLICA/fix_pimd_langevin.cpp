@@ -966,14 +966,6 @@ void FixPIMDLangevin::inter_replica_comm(double **ptr)
 
 /* ---------------------------------------------------------------------- */
 
-double **FixPIMDLangevin::normal_mode_transform_buffer()
-{
-  if (comm->nprocs == 1) return bufsortedall;
-  return bufbeads;
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::inter_replica_comm_multirank(double **ptr)
 {
   if (atom->nmax > maxlocal) reallocate_multirank();

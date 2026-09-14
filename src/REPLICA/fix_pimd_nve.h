@@ -122,7 +122,7 @@ class FixPIMDNVE : public Fix {
   void remove_com_motion();
   void unmap_coordinates(double **, imageint *);
   void remap_coordinates(double **, imageint *);
-  virtual double **normal_mode_transform_buffer();
+  double **normal_mode_transform_buffer();
   void prepare_common_virial_state();
   void schedule_common_computes();
 

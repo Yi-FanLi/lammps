@@ -60,7 +60,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   void comm_init();
   void comm_init_multirank();
   virtual void prepare_coordinates();
-  double **normal_mode_transform_buffer() override;
   void inter_replica_comm(double **ptr) override;
   void inter_replica_comm_multirank(double **ptr);
   void ring_collect(const std::vector<tagint> &miss_tag,

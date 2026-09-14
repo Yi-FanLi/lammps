@@ -375,9 +375,7 @@ void FixPIMDNVE::setup(int vflag)
   remap_coordinates(atom->x, atom->image);
 
   post_force(vflag);
-  compute_totke();
   end_of_step();
-  schedule_common_computes();
 }
 
 void FixPIMDNVE::initial_integrate(int /*vflag*/)

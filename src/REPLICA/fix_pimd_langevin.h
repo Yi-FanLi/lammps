@@ -37,7 +37,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   enum { NVE, NVT, NPH, NPT };
   enum { SINGLE_PROC, MULTI_PROC };
 
-
   void init() override;
   void setup(int) override;
   void post_force(int) override;
@@ -47,14 +46,9 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
  protected:
   // System setting variables
-  double lj_epsilon, lj_sigma, lj_mass;    // LJ unit energy, length, and mass scales
-  double other_planck;
-  double other_mvv2e;
   int thermostat;          // NHC or PILE_L
   int barostat;            // BZP
-  int integrator;          // obabo or baoab
   int ensemble;            // nve or nvt or nph or npt
-  int removecomflag;
 
   double fixedpoint[3];    // location of dilation fixed-point
 
@@ -72,8 +66,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
                                             std::vector<double> &rep_val);
 
   /* normal-mode operations */
-
-  double **M_f2fp, **M_fp2f;
 
   void reallocate();
   void reallocate_multirank();
@@ -120,7 +112,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
   /* centroid-virial estimator computation */
   double vol0 = 0.0;
   void remove_com_motion();
-  double p_vir;
 
   /* Langevin-specific estimators */
   void compute_stress_tensor();

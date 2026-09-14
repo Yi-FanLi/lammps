@@ -79,14 +79,10 @@ constexpr int TAG_RING_REP_VALS   = 404;
 /* ---------------------------------------------------------------------- */
 
 FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
-    FixPIMDNVE(lmp, narg, arg, true), M_f2fp(nullptr), M_fp2f(nullptr), tau_k(nullptr),
+    FixPIMDNVE(lmp, narg, arg, true), tau_k(nullptr),
     c1_k(nullptr), c2_k(nullptr), random(nullptr)
 {
-  restart_global = 1;
-  time_integrate = 1;
-
-  ntotal = 0;
-  maxlocal = maxsend = 0;
+  maxsend = 0;
   multirank_sizeplan = 0;
   multirank_plansend = nullptr;
   multirank_planrecv = nullptr;
@@ -96,16 +92,9 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   multirank_bufrecv = nullptr;
   multirank_bufbeads = nullptr;
 
-  method = NMPIMD;
   ensemble = NVT;
-  integrator = OBABO;
   thermostat = PILE_L;
   barostat = BZP;
-  fmass = 1.0;
-  np = universe->nworlds;
-  inverse_np = 1.0 / np;
-  sp = 1.0;
-  temp = 298.15;
   Lan_temp = 298.15;
   tau = 1.0;
   tau_p = 1.0;
@@ -114,18 +103,10 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
   pilescale = 1.0;
   tstat_flag = 1;
   pstat_flag = 0;
-  mapflag = 1;
-  removecomflag = 1;
-  fmmode = PHYSICAL;
   pstyle = ISO;
-  pote = tote = totke = totenthalpy = total_spring_energy = 0.0;
-  centroid_vir = vir = vir_ = 0.0;
-  ke_bead = se_bead = pe_bead = tote = t_prim = t_vir = t_cv = p_prim = p_md = p_cv = 0.0;
+  totenthalpy = 0.0;
 
   int seed = -1;
-
-  if (domain->dimension != 3)
-    error->universe_all(FLERR, fmt::format("Fix {} requires a 3d system", style));
 
   for (int i = 0; i < 6; i++) {
     p_flag[i] = 0;
@@ -276,8 +257,6 @@ FixPIMDLangevin::FixPIMDLangevin(LAMMPS *lmp, int narg, char **arg) :
 
   /* Initiation */
 
-  global_freq = 1;
-  vector_flag = 1;
   if (!pstat_flag) {
     size_vector = 10;
   } else if (pstat_flag) {
@@ -396,19 +375,13 @@ void FixPIMDLangevin::init()
     utils::print(universe->uscreen, "Fix {}: -P/(beta^2 * hbar^2) = {:20.7e} (kcal/mol/A^2)\n\n",
                  style, fbond);
 
-  if (integrator == OBABO) {
-    dtf = 0.5 * update->dt * force->ftm2v;
-    dtv = 0.5 * update->dt;
-    dtv2 = dtv * dtv;
-    dtv3 = THIRD * dtv2 * dtv * force->ftm2v;
-  } else if (integrator == BAOAB) {
-    dtf = 0.5 * update->dt * force->ftm2v;
-    dtv = 0.5 * update->dt;
-    dtv2 = dtv * dtv;
-    dtv3 = THIRD * dtv2 * dtv * force->ftm2v;
-  } else {
+  if (integrator != OBABO && integrator != BAOAB)
     error->universe_all(FLERR, fmt::format("Unknown integrator parameter for fix {}", style));
-  }
+
+  dtf = 0.5 * update->dt * force->ftm2v;
+  dtv = 0.5 * update->dt;
+  dtv2 = dtv * dtv;
+  dtv3 = THIRD * dtv2 * dtv * force->ftm2v;
 
   comm_init();
 
@@ -443,7 +416,7 @@ void FixPIMDLangevin::init()
           fmt::format("Compute ID {} for fix {} does not compute pressure", id_press, style));
   }
 
-  t_prim = t_vir = t_cv = p_prim = p_vir = p_cv = p_md = 0.0;
+  t_prim = t_vir = t_cv = p_prim = p_cv = p_md = 0.0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -486,9 +459,7 @@ void FixPIMDLangevin::setup(int vflag)
   remap_coordinates(atom->x, atom->image);
 
   post_force(vflag);
-  compute_totke();
   end_of_step();
-  schedule_common_computes();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1217,21 +1188,7 @@ void FixPIMDLangevin::ring_collect(const std::vector<tagint> &miss_tag,
 void FixPIMDLangevin::remove_com_motion()
 {
   if (method == NMPIMD) {
-    if (universe->iworld == 0) {
-      double **v = atom->v;
-      int *mask = atom->mask;
-      int nlocal = atom->nlocal;
-      if (dynamic) masstotal = group->mass(igroup);
-      double vcm[3];
-      group->vcm(igroup, masstotal, vcm);
-      for (int i = 0; i < nlocal; i++) {
-        if (mask[i] & groupbit) {
-          v[i][0] -= vcm[0];
-          v[i][1] -= vcm[1];
-          v[i][2] -= vcm[2];
-        }
-      }
-    }
+    FixPIMDNVE::remove_com_motion();
   } else if (method == PIMD) {
     double **v = atom->v;
     int *mask = atom->mask;

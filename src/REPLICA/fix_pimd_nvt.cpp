@@ -105,12 +105,16 @@ bool FixPIMDNVT::parse_keyword(int narg, char **arg, int &i)
   if (strcmp(arg[i], "tchain") == 0) {
     if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} tchain", style), error);
     mtchain = utils::inumeric(FLERR, arg[i + 1], false, lmp);
+    if (mtchain < 1)
+      error->all(FLERR, i + 1, "Invalid fix {} tchain argument: {}", style, mtchain);
     i += 2;
     return true;
   }
   if (strcmp(arg[i], "tloop") == 0) {
     if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} tloop", style), error);
     nc_tchain = utils::inumeric(FLERR, arg[i + 1], false, lmp);
+    if (nc_tchain < 0)
+      error->all(FLERR, i + 1, "Invalid fix {} tloop argument: {}", style, nc_tchain);
     i += 2;
     return true;
   }

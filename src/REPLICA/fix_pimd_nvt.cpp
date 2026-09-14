@@ -219,7 +219,10 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
     thermostat_step();
     force_half_step();
     if (method == NMPIMD || method == CMD) {
-      begin_normal_mode_coordinate_propagation();
+      unmap_coordinates(atom->x, atom->image);
+      // Forward: bead coordinates to normal modes.
+      inter_replica_comm(atom->x);
+      nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
       centroid_position_half_step();
       a_step();
       centroid_position_half_step();
@@ -234,7 +237,10 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
   } else if (integrator == BAOAB) {
     force_half_step();
     if (method == NMPIMD || method == CMD) {
-      begin_normal_mode_coordinate_propagation();
+      unmap_coordinates(atom->x, atom->image);
+      // Forward: bead coordinates to normal modes.
+      inter_replica_comm(atom->x);
+      nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
       centroid_position_half_step();
       a_step();
     } else if (method == PIMD) {
@@ -258,7 +264,14 @@ void FixPIMDNVT::initial_integrate(int /*vflag*/)
                                            style));
   }
   if (method == NMPIMD || method == CMD) {
-    finalize_normal_mode_coordinate_propagation();
+    collect_xc();
+    compute_spring_energy();
+    compute_t_prim();
+    compute_p_prim();
+    // Backward: normal modes to bead coordinates.
+    inter_replica_comm(atom->x);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
+    remap_coordinates(atom->x, atom->image);
   } else {
     collect_xc();
     remap_coordinates(atom->x, atom->image);

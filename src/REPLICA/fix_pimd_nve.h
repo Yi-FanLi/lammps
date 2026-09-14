@@ -89,6 +89,7 @@ class FixPIMDNVE : public Fix {
   double **bufsendall, **bufrecvall;
   int *counts, *displacements;
 
+  // M_x2xp: forward (beads -> normal modes); M_xp2x: backward (normal modes -> beads).
   double *lam, **M_x2xp, **M_xp2x;
   int *modeindex;
 
@@ -129,12 +130,6 @@ class FixPIMDNVE : public Fix {
   void unmap_coordinates(double **, imageint *);
   void remap_coordinates(double **, imageint *);
   virtual double **normal_mode_transform_buffer();
-  void forward_normal_mode_transform(double **);
-  void backward_normal_mode_transform(double **);
-  void finalize_setup_normal_mode_coordinates();
-  void begin_normal_mode_coordinate_propagation();
-  void propagate_normal_mode_coordinate_halfstep();
-  void finalize_normal_mode_coordinate_propagation();
   void prepare_common_virial_state();
   void prepare_normal_mode_forces();
   void schedule_common_computes();

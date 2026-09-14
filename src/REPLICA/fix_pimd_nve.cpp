@@ -351,7 +351,10 @@ void FixPIMDNVE::init()
 void FixPIMDNVE::setup(int vflag)
 {
   if (method == NMPIMD || method == CMD) {
-    begin_normal_mode_coordinate_propagation();
+    unmap_coordinates(atom->x, atom->image);
+    // Forward: bead coordinates to normal modes.
+    inter_replica_comm(atom->x);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
   } else if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
     inter_replica_comm(atom->x);
@@ -364,10 +367,12 @@ void FixPIMDNVE::setup(int vflag)
   compute_spring_energy();
   compute_t_prim();
   compute_p_prim();
-  if (method == NMPIMD || method == CMD)
-    finalize_setup_normal_mode_coordinates();
-  else
-    remap_coordinates(atom->x, atom->image);
+  if (method == NMPIMD || method == CMD) {
+    // Backward: normal modes to bead coordinates.
+    inter_replica_comm(atom->x);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
+  }
+  remap_coordinates(atom->x, atom->image);
 
   post_force(vflag);
   compute_totke();
@@ -379,10 +384,22 @@ void FixPIMDNVE::initial_integrate(int /*vflag*/)
 {
   b_step();
   if (method == NMPIMD || method == CMD) {
-    begin_normal_mode_coordinate_propagation();
-    propagate_normal_mode_coordinate_halfstep();
-    propagate_normal_mode_coordinate_halfstep();
-    finalize_normal_mode_coordinate_propagation();
+    unmap_coordinates(atom->x, atom->image);
+    // Forward: bead coordinates to normal modes.
+    inter_replica_comm(atom->x);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_x2xp[universe->iworld]);
+    qc_step();
+    a_step();
+    qc_step();
+    a_step();
+    collect_xc();
+    compute_spring_energy();
+    compute_t_prim();
+    compute_p_prim();
+    // Backward: normal modes to bead coordinates.
+    inter_replica_comm(atom->x);
+    nmpimd_transform(normal_mode_transform_buffer(), atom->x, M_xp2x[universe->iworld]);
+    remap_coordinates(atom->x, atom->image);
   } else if (method == PIMD) {
     unmap_coordinates(atom->x, atom->image);
     q_step();
@@ -456,46 +473,6 @@ double **FixPIMDNVE::normal_mode_transform_buffer()
   return bufbeads;
 }
 
-void FixPIMDNVE::forward_normal_mode_transform(double **ptr)
-{
-  inter_replica_comm(ptr);
-  nmpimd_transform(normal_mode_transform_buffer(), ptr, M_x2xp[universe->iworld]);
-}
-
-void FixPIMDNVE::backward_normal_mode_transform(double **ptr)
-{
-  inter_replica_comm(ptr);
-  nmpimd_transform(normal_mode_transform_buffer(), ptr, M_xp2x[universe->iworld]);
-}
-
-void FixPIMDNVE::finalize_setup_normal_mode_coordinates()
-{
-  backward_normal_mode_transform(atom->x);
-  remap_coordinates(atom->x, atom->image);
-}
-
-void FixPIMDNVE::begin_normal_mode_coordinate_propagation()
-{
-  unmap_coordinates(atom->x, atom->image);
-  forward_normal_mode_transform(atom->x);
-}
-
-void FixPIMDNVE::propagate_normal_mode_coordinate_halfstep()
-{
-  qc_step();
-  a_step();
-}
-
-void FixPIMDNVE::finalize_normal_mode_coordinate_propagation()
-{
-  collect_xc();
-  compute_spring_energy();
-  compute_t_prim();
-  compute_p_prim();
-  backward_normal_mode_transform(atom->x);
-  remap_coordinates(atom->x, atom->image);
-}
-
 void FixPIMDNVE::prepare_common_virial_state()
 {
   int nlocal = atom->nlocal;
@@ -521,7 +498,9 @@ void FixPIMDNVE::prepare_common_virial_state()
 
 void FixPIMDNVE::prepare_normal_mode_forces()
 {
-  forward_normal_mode_transform(atom->f);
+  // Forward: bead forces to normal-mode forces.
+  inter_replica_comm(atom->f);
+  nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
 }
 
 void FixPIMDNVE::schedule_common_computes()

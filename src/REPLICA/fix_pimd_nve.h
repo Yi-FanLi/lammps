@@ -125,8 +125,6 @@ class FixPIMDNVE : public Fix {
   void unmap_coordinates(double **, imageint *);
   void remap_coordinates(double **, imageint *);
   double **normal_mode_transform_buffer();
-  void prepare_common_virial_state();
-  void schedule_common_computes();
 
   double local_kinetic_energy_sum() const;
   void reduce_bead_and_total(double, double &, double &) const;

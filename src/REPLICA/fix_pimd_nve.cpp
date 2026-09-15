@@ -441,7 +441,26 @@ void FixPIMDNVE::prepare_coordinates()
 
 void FixPIMDNVE::post_force(int /*flag*/)
 {
-  prepare_common_virial_state();
+  int nlocal = atom->nlocal;
+  double **x = atom->x;
+  imageint *image = atom->image;
+  tagint *tag = atom->tag;
+
+  if (atom->nmax > maxunwrap) reallocate_x_unwrap();
+  if (atom->nmax > maxxc) reallocate_xc();
+
+  for (int i = 0; i < nlocal; i++) {
+    x_unwrap[i][0] = x[i][0];
+    x_unwrap[i][1] = x[i][1];
+    x_unwrap[i][2] = x[i][2];
+  }
+  unmap_coordinates(x_unwrap, image);
+  for (int i = 0; i < nlocal; i++) {
+    xc[i][0] = xcall[3 * (tag[i] - 1) + 0];
+    xc[i][1] = xcall[3 * (tag[i] - 1) + 1];
+    xc[i][2] = xcall[3 * (tag[i] - 1) + 2];
+  }
+
   compute_vir();
   compute_xf_vir();
   compute_cvir();
@@ -464,7 +483,8 @@ void FixPIMDNVE::post_force(int /*flag*/)
   }
   after_force_transform_hook();
 
-  schedule_common_computes();
+  c_pe->addstep(update->ntimestep + 1);
+  c_press->addstep(update->ntimestep + 1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -508,39 +528,6 @@ double **FixPIMDNVE::normal_mode_transform_buffer()
 {
   if (cmode == SINGLE_PROC) return bufsortedall;
   return bufbeads;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDNVE::prepare_common_virial_state()
-{
-  int nlocal = atom->nlocal;
-  double **x = atom->x;
-  imageint *image = atom->image;
-  tagint *tag = atom->tag;
-
-  if (atom->nmax > maxunwrap) reallocate_x_unwrap();
-  if (atom->nmax > maxxc) reallocate_xc();
-
-  for (int i = 0; i < nlocal; i++) {
-    x_unwrap[i][0] = x[i][0];
-    x_unwrap[i][1] = x[i][1];
-    x_unwrap[i][2] = x[i][2];
-  }
-  unmap_coordinates(x_unwrap, image);
-  for (int i = 0; i < nlocal; i++) {
-    xc[i][0] = xcall[3 * (tag[i] - 1) + 0];
-    xc[i][1] = xcall[3 * (tag[i] - 1) + 1];
-    xc[i][2] = xcall[3 * (tag[i] - 1) + 2];
-  }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDNVE::schedule_common_computes()
-{
-  c_pe->addstep(update->ntimestep + 1);
-  c_press->addstep(update->ntimestep + 1);
 }
 
 /* ---------------------------------------------------------------------- */

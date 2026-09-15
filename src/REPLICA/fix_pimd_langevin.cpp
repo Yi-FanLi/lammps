@@ -626,12 +626,12 @@ void FixPIMDLangevin::langevin_init()
       }
       for (int i = 0; i < np; i++) {
         out += fmt::format("      {:d}     {:.8e} {:.8e} {:.8e} {:.8e}\n", i, _omega_k[i], tau_k[i],
-                           c1_k[i], c2_k[i]);
+                          c1_k[i], c2_k[i]);
       }
     } else if (method == PIMD) {
       for (int i = 0; i < np; i++) {
         out += fmt::format("      {:d}     {:.8e} {:.8e} {:.8e} {:.8e}\n", i,
-                           _omega_np / sqrt(fmass), tau, c1, c2);
+                          _omega_np / sqrt(fmass), tau, c1, c2);
       }
     }
     if (thermostat == PILE_L) out += "  PILE_L thermostat successfully initialized!\n";

@@ -278,8 +278,8 @@ void FixPIMDNVT::final_integrate()
 void FixPIMDNVT::nhc_init()
 {
   if (kt <= 0.0 || hbar <= 0.0)
-    error->universe_all(FLERR, fmt::format("Fix {} requires positive kt and hbar in nhc_init",
-                                           style));
+    error->universe_all(
+        FLERR, fmt::format("Fix {} requires positive kt and hbar in nhc_init", style));
 
   const double beta_local = 1.0 / kt;
   const double omega_np_local = np / beta_local / hbar;

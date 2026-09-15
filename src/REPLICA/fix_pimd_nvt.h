@@ -39,7 +39,6 @@ class FixPIMDNVT : public FixPIMDNVE {
   bool parse_keyword(int, char **, int &) override;
   void finish_nuclear_constructor_setup();
 
-
   double *eta;
   double *eta_dot;
   double *eta_dotdot;

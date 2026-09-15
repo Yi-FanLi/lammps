@@ -954,9 +954,9 @@ void FixPIMDNVE::inter_replica_comm(double **ptr)
       if (nsend > maxsend) {
         maxsend = nsend + 200;
         tagsend = (tagint *) memory->srealloc(tagsend, sizeof(tagint) * maxsend,
-                                              "FixPIMDNVE:tagsend");
+                                            "FixPIMDNVE:tagsend");
         bufsend = (double *) memory->srealloc(bufsend, sizeof(double) * 3 * maxsend,
-                                              "FixPIMDNVE:bufsend");
+                                            "FixPIMDNVE:bufsend");
       }
 
       // 3) exchange tags:
@@ -1007,7 +1007,7 @@ void FixPIMDNVE::inter_replica_comm(double **ptr)
           }
           if (pos < 0) {
             auto mesg = fmt::format("collect failed: tag {} not returned on world [{}] rank [{}]\n",
-                                    (int)t, universe->iworld, comm->me);
+                                  (int)t, universe->iworld, comm->me);
             error->universe_one(FLERR, mesg);
           }
 
@@ -1037,10 +1037,8 @@ void FixPIMDNVE::inter_replica_comm(double **ptr)
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDNVE::ring_collect(const std::vector<tagint> &miss_tag,
-                                            double **ptr,
-                                            std::vector<tagint> &rep_tag,
-                                            std::vector<double> &rep_val)
+void FixPIMDNVE::ring_collect(const std::vector<tagint> &miss_tag, double **ptr,
+                              std::vector<tagint> &rep_tag, std::vector<double> &rep_val)
 {
   // ring-collection: collect missing atoms from other ranks in this world
   // by passing missing tag lists and found values in a ring
@@ -1130,9 +1128,9 @@ void FixPIMDNVE::ring_collect(const std::vector<tagint> &miss_tag,
     // Print a small sample to help debug
     const tagint t0 = tok_missing[0];
     auto mesg = fmt::format(
-      "ring_collect: unresolved {} tags after {} hops on world [{}] rank [{}]. "
-      "Example tag = {}.\n",
-      (int)tok_missing.size(), P, universe->iworld, me, (int)t0);
+        "ring_collect: unresolved {} tags after {} hops on world [{}] rank [{}]. "
+        "Example tag = {}.\n",
+        (int)tok_missing.size(), P, universe->iworld, me, (int)t0);
     error->universe_one(FLERR, mesg);
   }
 }

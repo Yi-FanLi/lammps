@@ -1150,7 +1150,8 @@ void FixPIMDNVE::ring_collect(const std::vector<tagint> &miss_tag,
 
 void FixPIMDNVE::remove_com_motion()
 {
-  if (universe->iworld == 0) {
+  // Cartesian PIMD: every bead; normal modes: only the centroid mode.
+  if (method == PIMD || universe->iworld == 0) {
     double **v = atom->v;
     int *mask = atom->mask;
     int nlocal = atom->nlocal;

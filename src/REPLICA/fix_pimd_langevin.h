@@ -86,7 +86,6 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   /* centroid-virial estimator computation */
   double vol0 = 0.0;
-  void remove_com_motion();
 
   /* Langevin-specific estimators */
   void compute_stress_tensor();

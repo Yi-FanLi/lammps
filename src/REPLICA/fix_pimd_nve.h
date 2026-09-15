@@ -119,7 +119,7 @@ class FixPIMDNVE : public Fix {
   virtual void b_step();    // integrate for dt/2 according to B part (v <- v + f * dt/2)
   void q_step();
   virtual void qc_step();
-  virtual void a_step();
+  void a_step();
   virtual void spring_force();
   void remove_com_motion();
   void unmap_coordinates(double **, imageint *);
@@ -148,8 +148,8 @@ class FixPIMDNVE : public Fix {
   virtual int unpack_subclass_restart(const double *, int);
   virtual double compute_subclass_vector(int) const;
 
-  virtual int nuclear_vector_size() const;
-  virtual double compute_nuclear_vector(int) const;
+  int nuclear_vector_size() const;
+  double compute_nuclear_vector(int) const;
   virtual int base_restart_size() const;
   virtual int pack_base_restart(double *) const;
   virtual int unpack_base_restart(const double *);

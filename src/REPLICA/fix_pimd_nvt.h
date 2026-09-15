@@ -85,8 +85,7 @@ class FixPIMDNVT : public FixPIMDNVE {
   int base_restart_size() const override;
   int pack_base_restart(double *) const override;
   int unpack_base_restart(const double *) override;
-  int nuclear_vector_size() const override;
-  double compute_nuclear_vector(int) const override;
+  double compute_subclass_vector(int) const override;
 };
 
 }    // namespace LAMMPS_NS

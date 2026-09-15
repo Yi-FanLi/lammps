@@ -1150,6 +1150,7 @@ void FixPIMDNVE::ring_collect(const std::vector<tagint> &miss_tag,
 
 void FixPIMDNVE::remove_com_motion()
 {
+  // Do not remove center-of-mass motion for CMD.
   if (method == CMD) return;
 
   // Cartesian PIMD: every bead; NMPIMD: only the centroid mode.

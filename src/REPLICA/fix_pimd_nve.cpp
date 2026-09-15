@@ -53,6 +53,8 @@ enum { PHYSICAL, NORMAL };
 enum { BAOAB, OBABO };
 enum { SINGLE_PROC, MULTI_PROC };
 
+/* ---------------------------------------------------------------------- */
+
 FixPIMDNVE::FixPIMDNVE(LAMMPS *lmp, int narg, char **arg, bool defer_setup) :
     Fix(lmp, narg, arg), mass(nullptr), rootworld(MPI_COMM_NULL), plansend(nullptr),
     planrecv(nullptr), tagsend(nullptr), tagrecv(nullptr), bufsend(nullptr), bufrecv(nullptr),
@@ -523,6 +525,8 @@ void FixPIMDNVE::remap_coordinates(double **coords, imageint *image)
   int nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) domain->unmap_inv(coords[i], image[i]);
 }
+
+/* ---------------------------------------------------------------------- */
 
 double **FixPIMDNVE::normal_mode_transform_buffer()
 {

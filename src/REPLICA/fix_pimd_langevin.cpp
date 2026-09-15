@@ -747,6 +747,8 @@ void FixPIMDLangevin::compute_totenthalpy()
     totenthalpy = tote + 1.5 * W * vw[0] * vw[0] * inverse_np + p_hydro * (volume - vol0);
 }
 
+/* ---------------------------------------------------------------------- */
+
 double FixPIMDLangevin::compute_subclass_vector(int n) const
 {
   if (!pstat_flag) return 0.0;

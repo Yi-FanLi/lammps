@@ -358,7 +358,7 @@ TEST(FixPIMDNVEMPI, RemoveCOMRespectsRepresentationAndGroup)
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
   if (nprocs != 2) GTEST_SKIP() << "This test requires exactly 2 MPI ranks";
 
-  for (const char *method : {"pimd", "nmpimd"}) {
+  for (const char *method : {"pimd", "nmpimd", "cmd"}) {
     const char *args[] = {"LAMMPS_test", "-log", "none", "-partition", "2x1",
                           "-nocite", "-in", "none"};
     auto *lmp = static_cast<LAMMPS *>(lammps_open(sizeof(args) / sizeof(char *),
@@ -375,7 +375,10 @@ TEST(FixPIMDNVEMPI, RemoveCOMRespectsRepresentationAndGroup)
     command("group mobile id 1");
     command("pair_style zero 0.4");
     command("pair_coeff * *");
-    command((std::string("fix cp mobile pimd/nve temp 1.0 method ") + method).c_str());
+    const bool cmd = std::string(method) == "cmd";
+    const std::string style = cmd ? "pimd/nvt" : "pimd/nve";
+    command(("fix cp mobile " + style + " temp 1.0 method " + method +
+             (cmd ? " Tdamp 1.0 removecom no" : "")).c_str());
     command("run 0 post no");
     command("velocity all set 1.0 2.0 3.0");
     auto *fix = dynamic_cast<FixPIMDNVE *>(lmp->modify->get_fix_by_id("cp"));
@@ -383,7 +386,7 @@ TEST(FixPIMDNVEMPI, RemoveCOMRespectsRepresentationAndGroup)
     fix->remove_com_motion();
     for (int i = 0; i < lmp->atom->nlocal; ++i) {
       const bool removed = lmp->atom->tag[i] == 1 &&
-          (std::string(method) == "pimd" || fix->ireplica == 0);
+          !cmd && (std::string(method) == "pimd" || fix->ireplica == 0);
       for (int d = 0; d < 3; ++d)
         EXPECT_DOUBLE_EQ(lmp->atom->v[i][d], removed ? 0.0 : d + 1.0);
     }

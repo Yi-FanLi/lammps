@@ -75,6 +75,49 @@ TEST_F(ComputeTempUVTTest, CombinedScalarAndNuclearTensor)
   for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(temp->vector[i], nuclear->vector[i]);
 }
 
+TEST_F(ComputeTempUVTTest, FixVectorReportsCombinedTemperature)
+{
+  auto *fix = lmp->modify->get_fix_by_id("cp");
+  ASSERT_EQ(fix->size_vector, 19);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(0), 1.0);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(5), 1.5);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(6), 0.0);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(1), 31.0 / 4.0);
+  EXPECT_EQ(fix->get_thermo_colname(1), "f_cp:T_ins");
+  command("velocity all set 2 0 0");
+  EXPECT_DOUBLE_EQ(fix->compute_vector(1), 11.0 / 4.0);
+  command("thermo_style custom step f_cp[1] temp f_cp[2]");
+  command("thermo_modify norm yes");
+  EXPECT_NO_THROW(command("run 0 post no"));
+  command("run 5 post no");
+  EXPECT_NEAR(fix->compute_vector(1),
+              lmp->modify->get_compute_by_id("cp_temp")->compute_scalar(), 1.0e-12);
+}
+
+TEST_F(ComputeTempUVTTest, PhysicalOutputIndicesAreIndependentOfChainLength)
+{
+  for (const int chain : {1, 3, 5}) {
+    command("unfix cp");
+    command("fix cp all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 ne_velocity 2 "
+            "dedn v_deriv tchain " + std::to_string(chain));
+    command("run 0 post no");
+    auto *fix = dynamic_cast<FixUVT *>(lmp->modify->get_fix_by_id("cp"));
+    ASSERT_NE(fix, nullptr);
+    EXPECT_EQ(fix->size_vector, 7 + 4 * chain);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(0), 1.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(1), 31.0 / 4.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(2), 2.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(3), 0.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(4), 0.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(5), 1.5);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(6), 0.0);
+    for (int n = 0; n < 4 * chain; ++n) {
+      EXPECT_DOUBLE_EQ(fix->compute_vector(n + 7), fix->FixNH::compute_vector(n));
+      EXPECT_EQ(fix->get_thermo_colname(n + 7), fix->FixNH::get_thermo_colname(n));
+    }
+  }
+}
+
 TEST_F(ComputeTempUVTTest, FixUsesCombinedTemperatureAndEnergy)
 {
   auto *fix = dynamic_cast<FixUVT *>(lmp->modify->get_fix_by_id("cp"));
@@ -117,6 +160,7 @@ TEST_F(ComputeTempUVTTest, RestartPreservesCombinedTemperatureAndChainEnergy)
   EXPECT_DOUBLE_EQ(fix->eta_mass[0], chain_mass);
   EXPECT_NEAR(fix->compute_scalar(), energy, 1.0e-12);
   EXPECT_NEAR(fix->temperature->compute_scalar(), temp, 1.0e-12);
+  EXPECT_NEAR(fix->compute_vector(1), temp, 1.0e-12);
 }
 
 TEST_F(ComputeTempUVTTest, FixedMassesArePreservedDuringIntegration)

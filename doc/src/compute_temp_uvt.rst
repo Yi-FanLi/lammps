@@ -22,7 +22,7 @@ Examples
    variable dEdN equal 0.0
    fix cp all uvt temp 300 300 100 mu 0 0 100 ne 1 ne_velocity 0 dedn v_dEdN
    compute combined all temp/uvt cp
-   thermo_style custom step temp c_combined
+   thermo_style custom step f_cp[1] temp f_cp[2] c_combined
 
 Description
 """""""""""
@@ -78,7 +78,9 @@ Fix uvt creates a compute of this style automatically, with ID
 temp/uvt compute can be selected with :doc:`fix_modify temp <fix_modify>`
 if it references the same UVT fix and uses the same group.
 
-The scalar can also be used to report the combined temperature.  Other
+Fix uvt also exposes this temperature directly as its second vector entry
+(``f_cp[2]`` for fix ID ``cp``), so reporting it does not require an explicit
+compute command. The scalar can alternatively report the combined temperature.  Other
 atomic thermostats do not scale the electron-number velocity and must
 not use this combined temperature to control the coupled system.
 

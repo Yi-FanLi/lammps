@@ -161,7 +161,7 @@ FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
 
   u_freq = 1.0 / u_period;
 
-  size_vector += 6;
+  size_vector += 7;
 
   id_temp = utils::strdup(std::string(id) + "_temp");
   modify->add_compute(fmt::format("{} {} temp/uvt {}", id_temp, group->names[igroup], id));
@@ -359,17 +359,15 @@ double FixUVT::compute_scalar()
 
 double FixUVT::compute_vector(int n)
 {
-  const int base_n = size_vector - 6;
-  if (n < base_n) return FixNH::compute_vector(n);
-  n -= base_n;
-
+  // Physical outputs precede the chain so their indices do not depend on tchain.
   if (n == 0) return Ne;
-  if (n == 1) return Ne_dot;
-  if (n == 2) return dedn_current;
-  if (n == 3) return u_target;
-  if (n == 4) return 0.5*Ne_mass*Ne_dot*Ne_dot;
-  if (n == 5) return -u_target*Ne;
-  return 0.0;
+  if (n == 1) return temperature->compute_scalar();
+  if (n == 2) return Ne_dot;
+  if (n == 3) return dedn_current;
+  if (n == 4) return u_target;
+  if (n == 5) return 0.5*Ne_mass*Ne_dot*Ne_dot;
+  if (n == 6) return -u_target*Ne;
+  return FixNH::compute_vector(n - 7);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -377,18 +375,14 @@ double FixUVT::compute_vector(int n)
 std::string FixUVT::get_thermo_colname(int n)
 {
   if (n == -1) return FixNH::get_thermo_colname(n);
-
-  const int base_n = size_vector - 6;
-  if (n < base_n) return FixNH::get_thermo_colname(n);
-  n -= base_n;
-
   if (n == 0) return fmt::format("f_{}:Ne", id);
-  if (n == 1) return fmt::format("f_{}:Ne_dot", id);
-  if (n == 2) return fmt::format("f_{}:dEdN", id);
-  if (n == 3) return fmt::format("f_{}:mu", id);
-  if (n == 4) return fmt::format("f_{}:ke_Ne", id);
-  if (n == 5) return fmt::format("f_{}:pe_mu", id);
-  return "none";
+  if (n == 1) return fmt::format("f_{}:T_ins", id);
+  if (n == 2) return fmt::format("f_{}:Ne_dot", id);
+  if (n == 3) return fmt::format("f_{}:dEdN", id);
+  if (n == 4) return fmt::format("f_{}:mu", id);
+  if (n == 5) return fmt::format("f_{}:ke_Ne", id);
+  if (n == 6) return fmt::format("f_{}:pe_mu", id);
+  return FixNH::get_thermo_colname(n - 7);
 }
 
 /* ---------------------------------------------------------------------- */

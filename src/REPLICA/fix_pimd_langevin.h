@@ -47,8 +47,8 @@ class FixPIMDLangevin : public FixPIMDNVE {
   int seed;
 
   // System setting variables
-  int thermostat;          // NHC or PILE_L
-  int barostat;            // BZP
+  int thermostat;          // PILE_L
+  int barostat;            // BZP or MTTK
   int ensemble;            // nve or nvt or nph or npt
 
   double fixedpoint[3];    // location of dilation fixed-point
@@ -62,7 +62,7 @@ class FixPIMDLangevin : public FixPIMDNVE {
 
   class RanMars *random;
 
-  int tstat_flag;    // tstat_flat = 1 if thermostat if used
+  int tstat_flag;    // 1 if a thermostat is used
   void langevin_init();
   void qc_step() override;    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
   void o_step();     // integrate for dt according to O part (O-U process, for thermostating)

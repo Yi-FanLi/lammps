@@ -25,6 +25,8 @@ ComputeStyle(temp/uvt,ComputeTempUVT);
 namespace LAMMPS_NS {
 
 class ComputeTempUVT : public ComputeTemp {
+  friend class FixUVT;    // validate that its thermostat compute references this fix
+
  public:
   ComputeTempUVT(class LAMMPS *, int, char **);
   ~ComputeTempUVT() override;

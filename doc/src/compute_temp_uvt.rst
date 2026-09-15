@@ -73,12 +73,14 @@ be a fix uvt on the same group.  It must exist when the run is initialized;
 the electronic mass must be initialized before the combined temperature
 is evaluated.  A normal run setup initializes that mass in fix uvt.
 
-Use this compute to report the combined temperature.  Do not assign it
-as the thermostat temperature of the current fix uvt with *fix_modify
-temp*: that fix already adds the electronic kinetic energy and target
-internally, so doing so would count the electronic contribution twice.
-Other atomic thermostats do not scale the electron-number velocity and
-must not use this combined temperature to control the coupled system.
+Fix uvt creates a compute of this style automatically, with ID
+*fix-ID_temp*, and uses it for the combined thermostat.  An alternative
+temp/uvt compute can be selected with :doc:`fix_modify temp <fix_modify>`
+if it references the same UVT fix and uses the same group.
+
+The scalar can also be used to report the combined temperature.  Other
+atomic thermostats do not scale the electron-number velocity and must
+not use this combined temperature to control the coupled system.
 
 Related commands
 """"""""""""""""

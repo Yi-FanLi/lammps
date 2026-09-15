@@ -38,6 +38,22 @@ standard Nose-Hoover NVT equations of motion.  The electronic coordinate
 is propagated with an extended-mass variable and is driven by
 ``-dE/dN + mu``.
 
+A single Nose-Hoover chain thermostats the nuclear velocities and the
+electron-number velocity together.  The fix creates
+:doc:`compute temp/uvt <compute_temp_uvt>` with ID *fix-ID_temp* to provide
+the combined temperature and :math:`g+1` degrees of freedom, where
+:math:`g` is the nuclear DOF.  The electronic mass remains
+:math:`W_\mathrm{e}=g k_B T_\mathrm{target} \, \mathrm{Mudamp}^2`.
+It is initialized before the first combined temperature evaluation and
+updated with the temperature target during integration.
+
+The standard thermo temperature remains nuclear-only unless explicitly
+changed.  Use *c_fix-ID_temp* in :doc:`thermo_style <thermo_style>` to report
+the combined temperature.  A temperature selected with *fix_modify temp*
+must be a temp/uvt compute for this fix and group.  The usual
+:doc:`compute_modify <compute_modify>` DOF options can be applied to that
+compute; the nuclear DOF must remain positive.
+
 The ``dedn`` source may be an equal-style variable (``v_name``), a
 global compute (``c_ID``), or a global fix (``f_ID``).  If the source
 provides a global vector, an entry can be selected with the usual
@@ -64,7 +80,10 @@ supply the complete derivative at the outermost force stage.
 The global fix vector appends six entries after the regular
 Nose-Hoover vector entries: ``Ne``, ``Ne_dot``, ``dEdN``, ``mu``,
 the electronic kinetic energy, and the electronic potential contribution
-``-mu*Ne``.
+``-mu*Ne``.  The first Nose-Hoover potential-energy entry includes all
+:math:`g+1` controlled DOF.  The fix scalar includes the combined chain
+energy plus the electronic kinetic and potential terms, without counting
+the electronic thermostat contribution twice.
 
 The fix writes restart data for the Nose-Hoover state and electronic
 degree of freedom, so simulations may be continued with

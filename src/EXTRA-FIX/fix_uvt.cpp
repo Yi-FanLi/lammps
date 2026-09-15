@@ -17,10 +17,10 @@
 #include "error.h"
 #include "atom.h"
 #include "compute.h"
+#include "compute_temp_uvt.h"
 #include "domain.h"
 #include "group.h"
 #include "input.h"
-#include "neighbor.h"
 #include "modify.h"
 #include "force.h"
 #include "update.h"
@@ -36,7 +36,6 @@ using namespace FixConst;
 
 namespace {
 enum { ISO, ANISO, TRICLINIC };
-enum { NOBIAS, BIAS };
 
 struct UvtArgCache {
   std::vector<std::string> storage;
@@ -165,7 +164,7 @@ FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
   size_vector += 6;
 
   id_temp = utils::strdup(std::string(id) + "_temp");
-  modify->add_compute(fmt::format("{} {} temp", id_temp, group->names[igroup]));
+  modify->add_compute(fmt::format("{} {} temp/uvt {}", id_temp, group->names[igroup], id));
   tcomputeflag = 1;
 
   release_uvt_args();
@@ -192,6 +191,10 @@ int FixUVT::setmask()
 void FixUVT::init()
 {
   FixNH::init();
+
+  auto *combined = dynamic_cast<ComputeTempUVT *>(temperature);
+  if (!combined || strcmp(combined->id_fix, id) != 0 || combined->igroup != igroup)
+    error->all(FLERR, "Fix uvt requires a compute temp/uvt for the same fix and group");
 
   dedn_var = -1;
   dedn_compute = nullptr;
@@ -253,10 +256,16 @@ void FixUVT::init()
 
 void FixUVT::setup(int vflag)
 {
+  // Compute setup has established the combined DOF. Initialize Ne_mass before
+  // FixNH::setup evaluates the combined temperature, including after a restart.
+  tdof = temperature->dof;
+  if (tdof <= 1.0) error->all(FLERR, "Fix uvt requires positive nuclear degrees of freedom");
+  compute_temp_target();
+  Ne_mass = (tdof - 1.0) * boltz * t_target / (u_freq*u_freq);
+
   FixNH::setup(vflag);
   compute_mu_target();
   post_force(vflag);
-  Ne_mass = tdof * boltz * t_target / (u_freq*u_freq);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -296,9 +305,6 @@ void FixUVT::initial_integrate(int /*vflag*/)
 void FixUVT::final_integrate()
 {
   nve_v();
-
-  if (which == BIAS && neighbor->ago == 0)
-    t_current = temperature->compute_scalar();
 
   t_current = temperature->compute_scalar();
   tdof = temperature->dof;
@@ -344,8 +350,8 @@ void FixUVT::final_integrate_respa(int ilevel, int /*iloop*/)
 double FixUVT::compute_scalar()
 {
   double energy = FixNH::compute_scalar();
-  double kt = boltz * t_target;
-  energy += 0.5*Ne_mass*Ne_dot*Ne_dot + kt * eta[0] - u_target*Ne;
+  // FixNH already includes the thermostat energy for the combined DOF.
+  energy += 0.5*Ne_mass*Ne_dot*Ne_dot - u_target*Ne;
   return energy;
 }
 
@@ -512,71 +518,24 @@ void FixUVT::nve_x()
 
 /* ---------------------------------------------------------------------- */
 
+void FixUVT::nh_v_temp()
+{
+  FixNH::nh_v_temp();
+  Ne_dot *= factor_eta;
+}
+
+/* ---------------------------------------------------------------------- */
+
 void FixUVT::nhc_mu_integrate()
 {
-  int ich;
-  double expfac;
-  double kecurrent = tdof * boltz * t_current;
-  const double ext_ke_target = ke_target + boltz * t_target;
-
   if (eta_mass_flag) {
-    // The first thermostat variable controls the atomistic kinetic energy
-    // plus the single quadratic Ne degree of freedom.
-    eta_mass[0] = ext_ke_target / (t_freq*t_freq);
-    Ne_mass = tdof * boltz * t_target / (u_freq*u_freq);
-    for (ich = 1; ich < mtchain; ich++)
-      eta_mass[ich] = boltz * t_target / (t_freq*t_freq);
+    const double old_mass = Ne_mass;
+    Ne_mass = (tdof - 1.0) * boltz * t_target / (u_freq*u_freq);
+    // A temperature ramp changes Ne_mass. Update its contribution to the cached
+    // combined temperature before the base routine evaluates the kinetic energy.
+    t_current += (Ne_mass - old_mass)*Ne_dot*Ne_dot / (tdof*boltz);
   }
-
-  if (eta_mass[0] > 0.0)
-    eta_dotdot[0] =
-      (kecurrent + Ne_mass*Ne_dot*Ne_dot - ext_ke_target) / eta_mass[0];
-  else eta_dotdot[0] = 0.0;
-
-  double ncfac = 1.0/nc_tchain;
-  for (int iloop = 0; iloop < nc_tchain; iloop++) {
-    for (ich = mtchain-1; ich > 0; ich--) {
-      expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
-      eta_dot[ich] *= expfac;
-      eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
-      eta_dot[ich] *= tdrag_factor;
-      eta_dot[ich] *= expfac;
-    }
-
-    expfac = exp(-ncfac*dt8*eta_dot[1]);
-    eta_dot[0] *= expfac;
-    eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
-    eta_dot[0] *= tdrag_factor;
-    eta_dot[0] *= expfac;
-
-    factor_eta = exp(-ncfac*dthalf*eta_dot[0]);
-    nh_v_temp();
-    Ne_dot *= factor_eta;
-
-    t_current *= factor_eta*factor_eta;
-    kecurrent = tdof * boltz * t_current;
-
-    if (eta_mass[0] > 0.0)
-      eta_dotdot[0] =
-        (kecurrent + Ne_mass*Ne_dot*Ne_dot - ext_ke_target) / eta_mass[0];
-    else eta_dotdot[0] = 0.0;
-
-    for (ich = 0; ich < mtchain; ich++)
-      eta[ich] += ncfac*dthalf*eta_dot[ich];
-
-    eta_dot[0] *= expfac;
-    eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
-    eta_dot[0] *= expfac;
-
-    for (ich = 1; ich < mtchain; ich++) {
-      expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
-      eta_dot[ich] *= expfac;
-      eta_dotdot[ich] = (eta_mass[ich-1]*eta_dot[ich-1]*eta_dot[ich-1]
-                         - boltz * t_target) / eta_mass[ich];
-      eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
-      eta_dot[ich] *= expfac;
-    }
-  }
+  FixNH::nhc_temp_integrate();
 }
 
 /* ---------------------------------------------------------------------- */
